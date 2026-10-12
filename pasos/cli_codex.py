@@ -75,11 +75,11 @@ PATRON_MODELO_COMPLETO = re.compile(r"^gpt-[a-z0-9][a-z0-9.\-]*$")
 
 ESFUERZOS = ("low", "medium", "high", "xhigh", "max")
 
-# La configuración por defecto favorece llamadas de texto eficientes. Las
-# fases pueden recomendar más esfuerzo cuando una decisión afecta muchas
-# unidades del vídeo; los selectores por fase siguen permitiendo subir calidad.
-MODELO_POR_DEFECTO = "sonnet"
-ESFUERZO_POR_DEFECTO = "medium"
+# El Estudio usa gpt-6-luna en todas las fases y parte de esfuerzo alto. Las
+# fases permiten elevar aún más el esfuerzo cuando una decisión afecta muchas
+# unidades del vídeo.
+MODELO_POR_DEFECTO = "haiku"
+ESFUERZO_POR_DEFECTO = "high"
 
 # Factores iniciales de tiempo para estimar antes de tener historial; se ajustan
 # con el historial real de cada combinación.
@@ -276,7 +276,7 @@ POR_FASE = {
     # es "generacion de contenido", que pide MEDIO. Se resistio la tentacion de
     # poner alto: el historial dice que en bajo termina bien 20 de 20 veces, asi
     # que medio ya es subir un escalon sobre algo que funciona.
-    "guion": {"modelo": "sonnet", "esfuerzo": "medium",
+    "guion": {"modelo": "haiku", "esfuerzo": "medium",
               "porque": "generacion de contenido larga con restricciones; en la "
                         "matriz por tarea eso es esfuerzo medio, y el historial "
                         "dice que en bajo ya termina bien 20 de 20 veces"},
@@ -289,7 +289,7 @@ POR_FASE = {
     # campo de texto antes de que escriba nada, asi que un matiz perdido se ve y
     # se corrige, mientras que la guia de estilo se aplica a ciegas en cada
     # imagen.
-    "tono": {"modelo": "sonnet", "esfuerzo": "medium",
+    "tono": {"modelo": "haiku", "esfuerzo": "medium",
              "porque": "destila de varias transcripciones como escribe un canal, "
                        "y eso lo heredan todos sus videos; medio y no alto "
                        "porque lo lee y lo corrige una persona antes de usarlo"},
@@ -302,11 +302,11 @@ POR_FASE = {
     # Elegir voz leyendo ciento veinte descripciones y fijar cuatro mandos. Es
     # lectura y criterio, no razonamiento largo, y ademas la propuesta se ve
     # antes de grabar nada: equivocarse no cuesta una toma, cuesta un clic.
-    "voz_descrita": {"modelo": "sonnet", "esfuerzo": "low",
+    "voz_descrita": {"modelo": "haiku", "esfuerzo": "low",
                      "porque": "leer un catalogo y elegir; lo que salga se ve "
                                "en los mandos antes de pagar ninguna sintesis"},
 
-    "catalogo_visual": {"modelo": "sonnet", "esfuerzo": "medium",
+    "catalogo_visual": {"modelo": "haiku", "esfuerzo": "medium",
                         "porque": "una sola llamada por video que decide el "
                                   "reparto y los sitios de todo el montaje; "
                                   "equivocarse aqui sale mucho mas caro que el "
@@ -324,7 +324,7 @@ POR_FASE = {
     # QUE SE VE EN CADA PLANO, con TODOS los planos delante. El trabajo no es
     # describir un plano --eso lo hace cualquiera-- sino que cada uno se
     # distinga del de al lado, y eso es comparar. Una o dos llamadas por video.
-    "direccion": {"modelo": "sonnet", "esfuerzo": "medium",
+    "direccion": {"modelo": "haiku", "esfuerzo": "medium",
                   "porque": "el trabajo es COMPARAR unos planos con otros para "
                             "que no se repitan, no describir uno: es criterio "
                             "sobre el conjunto, y son una o dos llamadas por "
@@ -334,13 +334,13 @@ POR_FASE = {
     # arriba: alli el agente escribe una linea y el codigo la encaja entre el
     # sitio, el reparto y el tono; aqui escribe el parrafo entero y ademas
     # ELIGE el sitio entre los que su tramo pone a mano.
-    "redactor": {"modelo": "sonnet", "esfuerzo": "medium",
+    "redactor": {"modelo": "haiku", "esfuerzo": "medium",
                  "porque": "escribe el encargo entero de cada plano y elige su "
                            "sitio entre los del tramo: son mas decisiones por "
                            "plano que dirigirlo, y sigue siendo una sola "
                            "llamada por video"},
 
-    "plan_cartelas": {"modelo": "sonnet", "esfuerzo": "medium",
+    "plan_cartelas": {"modelo": "haiku", "esfuerzo": "medium",
                       "porque": "pocas decisiones por video pero de criterio "
                                 "narrativo, y ademas hay que redactar el texto: "
                                 "una o dos llamadas, el esfuerzo alto cuesta "
@@ -359,14 +359,14 @@ POR_FASE = {
     # proyecto: flujo agentico con efectos en disco. La matriz apunta a maximo,
     # pero el maximo esta medido como rendimientos decrecientes, y el alto da el
     # 90-95 % por mucho menos.
-    "capturas_agente": {"modelo": "sonnet", "esfuerzo": "high",
+    "capturas_agente": {"modelo": "haiku", "esfuerzo": "high",
                         "porque": "es agentico y toca ficheros: la matriz pide "
                                   "maximo, pero alto da el 90-95 % de esa "
                                   "calidad por una fraccion del gasto"},
 
     # Mirar de 3 a 8 fotogramas y describir el estilo que comparten. Es
     # observacion descriptiva, la categoria que sale bien en bajo.
-    "guia_estilo": {"modelo": "sonnet", "esfuerzo": "medium",
+    "guia_estilo": {"modelo": "haiku", "esfuerzo": "medium",
                     "porque": "es la UNICA descripcion en palabras del dibujo de "
                               "este video, y la reciben todas las imagenes que se "
                               "generan: los planos y las hojas de personaje. Era "
@@ -381,7 +381,7 @@ POR_FASE = {
     # matriz por tarea es clasificacion, que es la categoria que sale igual de
     # bien en bajo. Y ademas tiene que ser BARATO: si analizar si se puede
     # conservar cuesta mas que rehacerlo, nadie lo usaria.
-    "conservacion": {"modelo": "sonnet", "esfuerzo": "low",
+    "conservacion": {"modelo": "haiku", "esfuerzo": "low",
                      "porque": "clasificar si dos frases piden la misma imagen "
                                "es de lo que sale igual de bien en bajo, y el "
                                "analisis tiene que costar menos que rehacer"},
@@ -397,7 +397,7 @@ POR_FASE = {
     # un video entero para arreglar algo que era la musica. Y hay que saber lo
     # que cuesta cada camino, que es lo que separa «arreglalo» de «arreglalo
     # barato».
-    "repaso": {"modelo": "sonnet", "esfuerzo": "medium",
+    "repaso": {"modelo": "haiku", "esfuerzo": "medium",
                "porque": "elegir el cambio mas barato que resuelve una nota "
                          "pide entender el pipeline entero: equivocarse de "
                          "ambito puede regrabar un video para bajar la musica"},
@@ -405,7 +405,7 @@ POR_FASE = {
     # (el plano, sus vecinos, las hojas, las laminas) y decide que se adjunta y
     # con que etiqueta. Es una imagen por llamada y la equivocacion se paga en
     # imagenes: merece el modelo grande (pasos/corrector.py).
-    "corrector_imagen": {"modelo": "sonnet", "esfuerzo": "medium",
+    "corrector_imagen": {"modelo": "haiku", "esfuerzo": "medium",
                          "porque": "entender una nota como «el mismo ordenador "
                                    "que en la escena anterior» exige mirar las "
                                    "imagenes y elegir bien que se adjunta; una "
@@ -455,12 +455,8 @@ def catalogo():
     """
     return {
         "modelos": [
-            {"id": "haiku", "nombre": "Codex rápido",
-             "nota": "gpt-6-luna; para tareas breves y repetitivas"},
-            {"id": "sonnet", "nombre": "Codex equilibrado",
-             "nota": "gpt-6.1-sol; recomendado para la mayoría de las fases"},
-            {"id": "opus", "nombre": "Codex avanzado",
-             "nota": "gpt-6-astra; para decisiones creativas y revisiones difíciles"},
+            {"id": "haiku", "nombre": "Codex Luna",
+             "nota": "gpt-6-luna; el Estudio lo ejecuta con esfuerzo alto"},
         ],
         "esfuerzos": [
             {"id": "low", "nombre": "Bajo",
