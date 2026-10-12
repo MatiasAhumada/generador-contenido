@@ -57,8 +57,10 @@ en **[despliegue/LEEME.md](despliegue/LEEME.md)**.
 
 ## Arrancar en tu propia máquina
 
-```bash
-python app.py --puerto 8020
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe app.py --puerto 8020
 ```
 
 Y abrir `http://127.0.0.1:8020/`. Con `--host 0.0.0.0` escucha en la red local;
