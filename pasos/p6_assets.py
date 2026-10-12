@@ -3233,7 +3233,10 @@ def _producir_imagen(nombre, prompt, referencias, destino, p, rehacer=False,
     no dice donde mirar.
     """
     tamano = tamano or "apaisado"
+    motor_imagen = medios.motor("imagen_openai/imagen.py")
+    proveedor_modelo = motor_imagen.configuracion_actual()
     firma = medios.huella({"prompt": prompt, "calidad": p["calidad"],
+                           "proveedor_modelo": proveedor_modelo,
                            # el tamano entra en la firma: la misma escena en
                            # vertical es otra imagen, y la cache no puede
                            # devolver la apaisada
@@ -3261,7 +3264,7 @@ def _producir_imagen(nombre, prompt, referencias, destino, p, rehacer=False,
             medios.copiar(cacheada, destino)
             return {"origen": "cache", "firma": firma, "coste": 0.0}
 
-    imagen = medios.motor("imagen_openai/imagen.py")
+    imagen = motor_imagen
     sin_cita = False
     try:
         try:
@@ -3329,8 +3332,10 @@ def _huella_peticion(prompt, referencias, p, tamano):
     `referencias` son las fichas ({papel, ruta}), no las rutas sueltas: hace
     falta el papel para saber cual es la rechazada.
     """
+    motor_imagen = medios.motor("imagen_openai/imagen.py")
     return medios.huella({
         "prompt": prompt, "calidad": p["calidad"],
+        "proveedor_modelo": motor_imagen.configuracion_actual(),
         "tamano": tamano if tamano != "apaisado" else None,
         "refs": [medios.huella_fichero(r["ruta"]) for r in referencias
                  if r.get("papel") != "rechazada"]})

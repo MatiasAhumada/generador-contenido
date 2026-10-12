@@ -8,6 +8,7 @@ descubren a mitad de una tanda de imagenes, que es la forma cara.
 Aqui cada proveedor tiene su prueba, elegida para que NO cueste dinero:
 
     openai     GET /v1/models              autentica; no genera nada
+    openrouter GET /api/v1/key             autentica; no genera imagenes
     cartesia   GET /voices                 lista voces; no sintetiza nada
     jamendo    GET /tracks/?limit=1        una busqueda; el plan es gratuito
     freesound  GET /search/text/?page_size=1   idem
@@ -119,6 +120,26 @@ def probar_openai(clave):
                                    f"{_texto_corto(respuesta)}")
 
 
+def probar_openrouter(clave):
+    if not clave:
+        return _ficha("openrouter", "sin_clave", "no hay clave de OpenRouter puesta")
+    respuesta, fallo = _pedir(
+        "GET", "https://openrouter.ai/api/v1/key",
+        headers={"Authorization": f"Bearer {clave}"})
+    if respuesta is None:
+        return _ficha("openrouter", "sin_red",
+                      f"no se ha podido hablar con OpenRouter: {fallo}")
+    if respuesta.status_code == 200:
+        return _ficha("openrouter", "ok",
+                      "la clave autentica. No se generó ninguna imagen ni se consumieron créditos")
+    if respuesta.status_code in (401, 403):
+        return _ficha("openrouter", "mal",
+                      f"OpenRouter no reconoce la clave ({respuesta.status_code}): "
+                      f"{_texto_corto(respuesta)}")
+    return _ficha("openrouter", "mal",
+                  f"OpenRouter contesta {respuesta.status_code}: {_texto_corto(respuesta)}")
+
+
 def probar_cartesia(clave):
     if not clave:
         return _ficha("cartesia", "sin_clave", "no hay clave de Cartesia puesta")
@@ -206,6 +227,7 @@ def probar_todas(cuentas_codex=(), con_codex=True, cuentas_claude=None,
     fichas = []
     if salud_cli.simulado():
         for proveedor, puesta in (("openai", bool(almacen["openai"])),
+                                  ("openrouter", bool(almacen["openrouter"]["clave"])),
                                   ("cartesia", bool(almacen["cartesia"]["clave"])),
                                   ("jamendo", bool(almacen["jamendo"]["clave"])),
                                   ("freesound", bool(almacen["freesound"]["clave"]))):
@@ -216,6 +238,7 @@ def probar_todas(cuentas_codex=(), con_codex=True, cuentas_claude=None,
         return fichas
     pruebas = (
         (probar_openai, (almacen["openai"][0]["clave"] if almacen["openai"] else "")),
+        (probar_openrouter, almacen["openrouter"]["clave"]),
         (probar_cartesia, almacen["cartesia"]["clave"]),
         (probar_jamendo, almacen["jamendo"]["clave"]),
         (probar_freesound, almacen["freesound"]["clave"]),
@@ -236,7 +259,8 @@ def probar_todas(cuentas_codex=(), con_codex=True, cuentas_claude=None,
     return fichas
 
 
-NOMBRES = {"openai": "OpenAI (imágenes)", "cartesia": "Cartesia (voz)",
+NOMBRES = {"openai": "OpenAI (imágenes)", "openrouter": "OpenRouter (imágenes)",
+           "cartesia": "Cartesia (voz)",
            "jamendo": "Jamendo (música)", "freesound": "FreeSound (efectos)",
            "codex": "Codex (plan ChatGPT)"}
 

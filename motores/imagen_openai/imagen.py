@@ -17,6 +17,7 @@ concurrencia.
 """
 import base64
 import hashlib
+import io
 import json
 import os
 import re
@@ -33,7 +34,12 @@ API_URL = "https://api.openai.com/v1/images/edits"
 #: type»--, y /generations es la misma API para dibujar solo con texto: mismo
 #: modelo, mismos tamanos y calidades, y la misma respuesta en b64_json.
 API_URL_SIN_REFS = "https://api.openai.com/v1/images/generations"
+API_URL_OPENROUTER = "https://openrouter.ai/api/v1/images"
 MODELO = "gpt-image-2"
+MODELOS_OPENROUTER = {
+    "bytedance-seed/seedream-5-0-flash": 0.018,
+    "bytedance-seed/seedream-4.5": 0.04,
+}
 
 PRECIO = {"low": 0.006, "medium": 0.041, "high": 0.165}
 TAMANOS = {"apaisado": "1536x1024", "cuadrado": "1024x1024", "vertical": "1024x1536"}
@@ -735,6 +741,113 @@ def _al_dia(destino, origen):
         return False
 
 
+def _configuracion_imagen():
+    """Proveedor elegido y clave OpenRouter, leidos del almacen local."""
+    if not os.path.exists(RUTA_CLAVES):
+        return {"proveedor": "openai", "modelo": "", "clave": ""}
+    try:
+        with open(RUTA_CLAVES, "r", encoding="utf-8-sig") as fh:
+            datos = json.load(fh)
+    except (OSError, ValueError):
+        return {"proveedor": "openai", "modelo": "", "clave": ""}
+    imagen = datos.get("imagen") if isinstance(datos, dict) else {}
+    imagen = imagen if isinstance(imagen, dict) else {}
+    openrouter = datos.get("openrouter") if isinstance(datos, dict) else {}
+    openrouter = openrouter if isinstance(openrouter, dict) else {}
+    return {"proveedor": str(imagen.get("proveedor") or "openai"),
+            "modelo": str(imagen.get("modelo") or ""),
+            "clave": str(openrouter.get("clave") or "").strip()}
+
+
+def configuracion_actual():
+    """Identificador que debe entrar en las firmas de cache de cada imagen."""
+    config = _configuracion_imagen()
+    if config["proveedor"] == "openrouter":
+        return {"proveedor": "openrouter", "modelo": config["modelo"] or
+                "bytedance-seed/seedream-5-0-flash"}
+    return {"proveedor": "openai", "modelo": MODELO}
+
+
+def _referencia_data_url(ruta):
+    """Normaliza una referencia a PNG para la API JSON de OpenRouter."""
+    salida = io.BytesIO()
+    with Image.open(ruta) as imagen:
+        imagen.convert("RGBA").save(salida, format="PNG")
+    return "data:image/png;base64," + base64.b64encode(salida.getvalue()).decode("ascii")
+
+
+def _generar_openrouter(prompt, referencias, *, quality, tamano, api_key,
+                        reintentos):
+    config = _configuracion_imagen()
+    clave = str(api_key or config["clave"]).strip()
+    modelo = config["modelo"] or "bytedance-seed/seedream-5-0-flash"
+    if modelo not in MODELOS_OPENROUTER:
+        raise RuntimeError(f"modelo OpenRouter no admitido: {modelo}")
+    if not clave:
+        raise RuntimeError("falta la clave de OpenRouter: Configuración > Imágenes")
+    if len(referencias) > 14:
+        raise RuntimeError(
+            f"{modelo} acepta hasta 14 referencias y este plano lleva "
+            f"{len(referencias)}. Reduce las referencias del plano y vuelve a generar.")
+    aspectos = {"1536x1024": "3:2", "1024x1536": "2:3",
+                "1024x1024": "1:1"}
+    dimensiones = TAMANOS.get(tamano, tamano)
+    resolucion = "1K" if quality == "low" else "2K"
+    cuerpo = {"model": modelo, "prompt": prompt, "n": 1,
+              "resolution": resolucion,
+              "aspect_ratio": aspectos.get(dimensiones, "auto"),
+              "output_format": "png"}
+    if referencias:
+        cuerpo["input_references"] = [
+            {"type": "image_url", "image_url": {"url": _referencia_data_url(ruta)}}
+            for ruta in referencias]
+
+    respuesta = None
+    inicio = time.time()
+    max_intentos = max(0, int(reintentos))
+    for intento in range(max_intentos + 1):
+        respuesta = requests.post(
+            API_URL_OPENROUTER,
+            headers={"Authorization": f"Bearer {clave}",
+                     "Content-Type": "application/json",
+                     "X-Title": "AS Video Studio"},
+            json=cuerpo, timeout=600)
+        if respuesta.status_code == 200:
+            break
+        if respuesta.status_code not in (429, 500, 502, 503, 504) or intento >= max_intentos:
+            raise RuntimeError(
+                f"OpenRouter imagen ({modelo}) HTTP {respuesta.status_code}: "
+                f"{respuesta.text[:700]}")
+        try:
+            espera = float(respuesta.headers.get("Retry-After", 0))
+        except (TypeError, ValueError):
+            espera = 0
+        time.sleep(max(espera, min(2 ** intento, 20)))
+
+    payload = respuesta.json()
+    imagenes = payload.get("data") or []
+    if not imagenes or not imagenes[0].get("b64_json"):
+        raise RuntimeError(f"OpenRouter no devolvió una imagen: {str(payload)[:500]}")
+    recibido = base64.b64decode(imagenes[0]["b64_json"])
+    normalizada = io.BytesIO()
+    with Image.open(io.BytesIO(recibido)) as imagen:
+        imagen.convert("RGBA").save(normalizada, format="PNG")
+    png = normalizada.getvalue()
+    usage = payload.get("usage") or {}
+    coste = usage.get("cost")
+    estimado = coste is None
+    if estimado:
+        coste = MODELOS_OPENROUTER[modelo]
+    _gasto["usd"] += float(coste)
+    _gasto["llamadas"] += 1
+    return png, {"segundos": round(time.time() - inicio, 1),
+                 "quality": quality, "refs": len(referencias),
+                 "coste": float(coste), "coste_estimado": estimado,
+                 "proveedor": "openrouter", "modelo": modelo,
+                 "tamano": dimensiones, "resolucion": resolucion,
+                 "usage": usage}
+
+
 def generar(prompt, referencias, *, quality="low", tamano="apaisado",
             api_key=None, reintentos=6):
     # SIN REFERENCIAS SE DIBUJA SOLO CON EL TEXTO, por /generations. Aqui habia
@@ -750,6 +863,11 @@ def generar(prompt, referencias, *, quality="low", tamano="apaisado",
     if faltan:
         raise ValueError("estas imagenes de referencia no existen: "
                          + ", ".join(str(f) for f in faltan[:5]))
+
+    if _configuracion_imagen()["proveedor"] == "openrouter":
+        return _generar_openrouter(prompt, referencias, quality=quality,
+                                   tamano=tamano, api_key=api_key,
+                                   reintentos=reintentos)
 
     # con api_key explicita se respeta esa clave (una cuenta efimera con su
     # propio cubo); sin ella, cada intento elige la cuenta con hueco -- que es

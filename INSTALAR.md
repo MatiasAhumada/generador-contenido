@@ -12,7 +12,7 @@ de servidores: se pega una línea y se espera.
 |---|---|---|
 | **Un VPS con Ubuntu 24.04** | la máquina donde vive el estudio | desde ~7 €/mes |
 | **Codex CLI con tu cuenta de ChatGPT** | escribe el guion, analiza imágenes y alimenta el asistente | uso incluido de Codex, sujeto a sus límites |
-| **Una clave de OpenAI** | dibuja las imágenes | se paga por imagen (abajo) |
+| **Una clave de OpenRouter** o **OpenAI API** | dibuja las imágenes | se paga por imagen (abajo) |
 | **Una clave de Cartesia** | pone la voz | plan gratuito para empezar |
 | Jamendo y FreeSound *(opcional)* | música y efectos | gratis |
 
@@ -82,7 +82,7 @@ una en una y con el enlace de dónde se consigue cada una:
 
 1. **Conectar Codex.** En el servidor ejecuta `asvs codex-login` y completa el
    acceso de ChatGPT con la verificación del dispositivo que indica Codex.
-2. **La clave de OpenAI**, para las imágenes.
+2. **La clave de OpenRouter** (o OpenAI API), para las imágenes. Elige OpenRouter en Configuración para usar los créditos de esa cuenta.
 3. **La clave de Cartesia**, para la voz.
 4. Jamendo y FreeSound si quieres música y efectos.
 
@@ -90,9 +90,9 @@ Las claves se guardan desde la pantalla. Si te saltas la guía, vuelve a salir
 desde **Configuración** (el engranaje de arriba a la derecha). Codex se conecta
 desde la terminal del servidor con `asvs codex-login`.
 
-Codex usa el cupo de tu plan de ChatGPT. Las imágenes llaman a OpenAI API y la
-voz a Cartesia: son servicios separados y sus costes no están cubiertos por la
-suscripción de Codex.
+Codex usa el cupo de tu plan de ChatGPT. Las imágenes llaman al proveedor elegido
+(OpenRouter u OpenAI API) y la voz a Cartesia: son servicios separados y sus
+costes no están cubiertos por la suscripción de Codex.
 
 ---
 

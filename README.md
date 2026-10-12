@@ -74,7 +74,7 @@ autentica nada, a propósito (ver «Quién está dentro» más abajo).
 | **Microsoft Edge** (o Chrome) | rasterizar cada plano | igual |
 | Las **fuentes** de los subtítulos y las cartelas | medir y dibujar el texto | ver el aviso de `motores/README.md` |
 | **Codex CLI**, con sesión de ChatGPT (`codex login`) | el guion, el análisis visual y el asistente | no hay generación de texto |
-| Una **clave de OpenAI** | las imágenes | no hay vídeo |
+| Una **clave de OpenRouter** o **OpenAI API** | las imágenes | no hay vídeo |
 | Una **clave de Cartesia** | la voz | no hay vídeo |
 | Las de **Jamendo** y **FreeSound** | música y efectos | el vídeo sale sin ellos; son las únicas prescindibles |
 
@@ -87,14 +87,21 @@ codex login
 ```
 
 La generación de texto consume el uso incluido de Codex y sus límites; no usa
-facturación de OpenAI API. Las imágenes siguen usando OpenAI API y la voz
-Cartesia, con sus planes y costes separados. El Estudio estima el coste de
-generación antes de iniciar cada vídeo.
+facturación de OpenAI API. Las imágenes pueden usar OpenRouter (recomendado si
+ya tienes créditos) u OpenAI API, y la voz usa Cartesia, con sus planes y costes
+separados. El Estudio registra el gasto real de OpenRouter y estima el de
+OpenAI API antes de iniciar cada vídeo.
 
 Las claves se ponen en **Configuración** (el engranaje de arriba a la derecha) y
 se guardan en `secretos/claves.json`, fuera del control de versiones. Ninguna
 clave baja entera al navegador: la pantalla ve la etiqueta, los cuatro últimos
 caracteres y el estado.
+
+Para usar tus créditos de OpenRouter, en **Configuración → Proveedor de
+imágenes** selecciona OpenRouter, pega la clave `sk-or-…` y elige Seedream 5.0
+Flash o Seedream 4.5. La clave de Cartesia se configura en esa misma pantalla,
+en **Cartesia — voz**. La selección de OpenRouter solo cambia la generación de
+imágenes; Codex y Cartesia conservan sus funciones.
 
 **La primera vez, una guía de inicio** explica cómo conectar Codex y pide las
 claves de imagen y voz con los pasos y el enlace de donde se consiguen. Se ve

@@ -2310,7 +2310,9 @@ function pintarConfig() {
     return;
   }
   caja.appendChild(bloquePruebaClaves());
-  caja.appendChild(seccionOpenAI(ficha));
+  caja.appendChild(seccionProveedorImagen(ficha));
+  if ((ficha.imagen || {}).proveedor === 'openrouter') caja.appendChild(seccionOpenRouter(ficha));
+  else caja.appendChild(seccionOpenAI(ficha));
   caja.appendChild(seccionCalidadImagen());
   caja.appendChild(seccionCartesia(ficha));
   caja.appendChild(seccionCLI());
@@ -2323,8 +2325,8 @@ function pintarConfig() {
     }, 'Volver a ver la guía de inicio')));
   caja.appendChild(h('div', { clase: 'meta', estilo: 'margin-top:14px' },
     `Se guardan en ${ficha.fichero}, fuera del repositorio. No hace falta `
-    + 'reiniciar: el motor de imagen recoge las cuentas nuevas solo, y el CLI '
-    + 'lee la suya en cada llamada.'));
+    + 'reiniciar: la clave y el modelo de imagen se leen al generar, y el CLI '
+    + 'lee su sesión en cada llamada.'));
 }
 
 async function cargarAjustes() {
@@ -2378,18 +2380,28 @@ function seccionCalidadImagen() {
     return caja;
   }
 
-  const base = datos.costes[0] || {};
+  const modeloImagen = ((vista.ficha || {}).imagen || {});
+  const esOpenRouter = modeloImagen.proveedor === 'openrouter';
+  const tarifaOpenRouter = modeloImagen.modelo === 'bytedance-seed/seedream-4.5'
+    ? 0.04 : 0.018;
+  const costesImagen = esOpenRouter
+    ? ['low', 'medium', 'high'].map(calidad => ({
+      calidad, usd_total: tarifaOpenRouter, usd_imagen: tarifaOpenRouter,
+      usd_referencias: 0, veces_total: 1, veces_imagen: 1,
+    })) : datos.costes;
+  const base = costesImagen[0] || {};
   const porcentaje = base.usd_total
     ? Math.round(100 * base.usd_referencias / base.usd_total) : 0;
   caja.appendChild(h('div', { clase: 'pista' },
-    'Lo que se ve aqui NO es el precio de OpenAI: es lo que cuesta el plano '
-    + 'entero. A cada imagen se le adjuntan sus referencias de estilo, reparto y '
-    + `continuidad, y esas se pagan aparte — en la calidad baja son el ${porcentaje} % `
-    + 'del gasto. Por eso subir de calidad cuesta bastante menos de lo que '
-    + 'parece si solo se mira la tabla de precios.'));
+    esOpenRouter
+      ? `OpenRouter cobra por imagen generada. Con ${modeloImagen.modelo} la tarifa publicada es `
+        + `$${tarifaOpenRouter.toFixed(3)} por salida; la calidad baja usa 1K y media/alta usa 2K.`
+      : 'Lo que se ve aqui incluye el costo de la imagen y el de las referencias que se adjuntan. '
+        + `En calidad baja las referencias son el ${porcentaje} % del gasto, por eso subir la calidad `
+        + 'cuesta menos de lo que sugiere el precio de salida por sí solo.'));
 
   const elegida = datos.ajustes.calidad_imagen;
-  datos.costes.forEach(fila => {
+  costesImagen.forEach(fila => {
     const puesta = fila.calidad === elegida;
     caja.appendChild(h('button', {
       clase: 'fila-calidad' + (puesta ? ' elegida' : ''),
@@ -2470,6 +2482,65 @@ function seccionOpenAI(ficha) {
       + (viva.medido ? ' (medido en tus tandas)' : ' (según el plan)')));
   }
   return caja;
+}
+
+function seccionProveedorImagen(ficha) {
+  const imagen = ficha.imagen || { proveedor: 'openai', modelo: '' };
+  const proveedor = imagen.proveedor || 'openai';
+  const caja = h('section', { clase: 'bloque-config' },
+    h('div', { clase: 'fila' },
+      h('h3', {}, 'Proveedor de imágenes'),
+      h('span', { clase: 'crece' }),
+      pastillaEstado(imagen.puesta ? 'ok' : 'vacio',
+        imagen.puesta ? `${proveedor} activo` : 'falta clave')),
+    h('div', { clase: 'pista' },
+      'Esta elección solo controla imágenes. Codex sigue escribiendo y analizando; '
+      + 'Cartesia sigue generando la voz.'),
+    campoSelect('Proveedor', proveedor, [
+      { valor: 'openrouter', nombre: 'OpenRouter' },
+      { valor: 'openai', nombre: 'OpenAI API' },
+    ], valor => guardarClaves({ imagen: {
+      proveedor: valor,
+      modelo: imagen.modelo || 'bytedance-seed/seedream-5-0-flash',
+    } }), 'Puedes cambiarlo cuando quieras; cada imagen nueva usará el proveedor seleccionado.'));
+  if (proveedor === 'openrouter') {
+    caja.appendChild(campoSelect('Modelo de imagen', imagen.modelo || 'bytedance-seed/seedream-5-0-flash', [
+      { valor: 'bytedance-seed/seedream-5-0-flash', nombre: 'Seedream 5.0 Flash — US$0,018/imagen' },
+      { valor: 'bytedance-seed/seedream-4.5', nombre: 'Seedream 4.5 — US$0,04/imagen' },
+    ], valor => guardarClaves({ imagen: { proveedor, modelo: valor } }),
+    'El costo se registra con el importe devuelto por OpenRouter.'));
+  }
+  return caja;
+}
+
+function seccionOpenRouter(ficha) {
+  const campo = h('input', {
+    type: 'password',
+    placeholder: ficha.openrouter.puesta
+      ? `puesta (${ficha.openrouter.cola})` : 'sk-or-…',
+    autocomplete: 'new-password',
+  });
+  return h('section', { clase: 'bloque-config' },
+    h('div', { clase: 'fila' },
+      h('h3', {}, 'OpenRouter — clave de imágenes'),
+      h('span', { clase: 'crece' }),
+      pastillaEstado(ficha.openrouter.puesta ? 'ok' : 'vacio',
+        ficha.openrouter.puesta ? ficha.openrouter.cola : 'sin poner')),
+    h('div', { clase: 'pista' },
+      'Se guarda en el almacén local de secretos y nunca se devuelve al navegador. '
+      + 'Cartesia y Codex no usan esta clave.'),
+    h('div', { clase: 'fila-clave' }, campo,
+      h('button', { clase: 'mini', onclick: () => {
+        if (!campo.value.trim()) { toast('pega tu clave de OpenRouter', true); return; }
+        guardarClaves({ openrouter: { clave: campo.value.trim() } });
+        campo.value = '';
+      } }, ficha.openrouter.puesta ? 'Cambiar' : 'Guardar'),
+      ficha.openrouter.puesta ? h('button', { clase: 'mini fantasma peligro',
+        onclick: () => {
+          if (!window.confirm('¿Quitar la clave de OpenRouter? La generación de imágenes dejará de funcionar.')) return;
+          guardarClaves({ openrouter: { clave: '' } });
+        },
+      }, 'Quitar') : null));
 }
 
 function seccionCartesia(ficha) {
@@ -2677,7 +2748,8 @@ async function probarCuentaCLI(cid) {
    las API keys usan consultas de lectura; Codex consume una respuesta mínima
    del uso incluido. Es el mismo bloque en Configuración y en la guía. */
 const NOMBRES_PROVEEDOR = {
-  openai: 'OpenAI — imágenes', cartesia: 'Cartesia — voz', jamendo: 'Jamendo — música',
+  openai: 'OpenAI — imágenes', openrouter: 'OpenRouter — imágenes',
+  cartesia: 'Cartesia — voz', jamendo: 'Jamendo — música',
   freesound: 'FreeSound — efectos', codex: 'Codex (plan ChatGPT)',
 };
 
@@ -3718,6 +3790,20 @@ function proveedorDe(agregado, nombre) {
   });
 }
 
+function imagenesDe(agregado) {
+  const directas = proveedorDe(agregado, 'openai');
+  const openrouter = proveedorDe(agregado, 'openrouter');
+  const importes = [directas.usd, openrouter.usd].filter(v => v !== null && v !== undefined);
+  return {
+    usd: importes.length ? importes.reduce((a, b) => a + Number(b || 0), 0) : null,
+    eventos: directas.eventos + openrouter.eventos,
+    usd_estimado: directas.usd_estimado || openrouter.usd_estimado,
+    sin_tarifa: directas.sin_tarifa || openrouter.sin_tarifa,
+    cantidad: { imagenes: directas.cantidad.imagenes + openrouter.cantidad.imagenes },
+    tokens: { total: directas.tokens.total + openrouter.tokens.total },
+  };
+}
+
 function importeCoste(ficha, hueco) {
   if (!ficha) return h('span', { clase: 'meta' }, '—');
   // sin un solo evento no hay importe que ensenar: un '$0.00' ahi se lee como
@@ -3743,11 +3829,11 @@ function pintarCoste() {
   vaciar(nodo);
   const datos = COSTE.datos;
   if (!datos) { nodo.textContent = 'coste: —'; return; }
-  const abierto = proveedorDe(datos, 'openai');
+  const abierto = imagenesDe(datos);
   const voz = proveedorDe(datos, 'tts');
   const cli = proveedorDe(datos, 'codex_plan');
 
-  nodo.appendChild(h('span', { clase: 'prov' }, h('b', {}, 'OpenAI'), importeCoste(abierto),
+  nodo.appendChild(h('span', { clase: 'prov' }, h('b', {}, 'Imágenes'), importeCoste(abierto),
     h('span', { clase: 'meta' }, `${corto(abierto.tokens.total)} tok`)));
   nodo.appendChild(h('span', { clase: 'prov' }, h('b', {}, 'TTS'), importeCoste(voz),
     h('span', { clase: 'meta' }, `${corto(voz.cantidad.caracteres)} car`)));
@@ -3852,7 +3938,7 @@ async function pintarDesgloseCoste() {
   vaciar(caja);
 
   const fila = ficha => {
-    const abierto = proveedorDe(ficha, 'openai');
+    const abierto = imagenesDe(ficha);
     const voz = proveedorDe(ficha, 'tts');
     const cli = proveedorDe(ficha, 'codex_plan');
     return [
@@ -3869,7 +3955,7 @@ async function pintarDesgloseCoste() {
   };
 
   const tabla = h('table', { clase: 'tabla coste-pasos' },
-    h('tr', {}, h('th', {}, 'Paso'), h('th', {}, 'OpenAI'), h('th', {}, ''),
+    h('tr', {}, h('th', {}, 'Paso'), h('th', {}, 'Imágenes'), h('th', {}, ''),
       h('th', {}, 'TTS'), h('th', {}, ''), h('th', {}, 'Codex (plan)'), h('th', {}, 'Total')));
   for (const ficha of (porPaso && listaDe(porPaso.pasos)) || []) {
     if (!ficha.eventos) continue;
@@ -6918,7 +7004,7 @@ function costeLightAhora() {
     onclick: ev => { ev.stopPropagation(); conmutarCoste(); },
   });
   if (!datos) { caja.appendChild(h('span', { clase: 'meta' }, 'coste: —')); return caja; }
-  const abierto = proveedorDe(datos, 'openai');
+  const abierto = imagenesDe(datos);
   const voz = proveedorDe(datos, 'tts');
   const cli = proveedorDe(datos, 'codex_plan');
   caja.appendChild(h('span', { clase: 'prov' }, h('b', {}, 'Imágenes'),
@@ -10774,7 +10860,7 @@ const INICIO = { abierta: false, paso: 0, arrancando: false, accesoFallido: '' }
 const TARJETAS_INICIO = [
   { id: 'bienvenida', titulo: 'Bienvenido a AS Video Studio', pinta: tarjetaBienvenidaInicio },
   { id: 'codex', titulo: '1 · Sesión de Codex', pinta: tarjetaCodexInicio },
-  { id: 'openai', titulo: '2 · La clave de OpenAI (imágenes)', pinta: tarjetaOpenAIInicio },
+  { id: 'imagen', titulo: '2 · OpenRouter (imágenes)', pinta: tarjetaImagenInicio },
   { id: 'cartesia', titulo: '3 · La clave de Cartesia (voz)', pinta: tarjetaCartesiaInicio },
   { id: 'jamendo', titulo: '4 · La clave de Jamendo (música, opcional)', pinta: tarjetaJamendoInicio },
   { id: 'freesound', titulo: '5 · La clave de FreeSound (efectos, opcional)', pinta: tarjetaFreeSoundInicio },
@@ -10887,12 +10973,12 @@ function tarjetaBienvenidaInicio() {
       'Esto convierte lo que escribas —unas notas, un artículo, tu propio guion— '
       + 'en un vídeo de animación narrada, en varios pasos con revisión entre '
       + 'ellos. Codex usa el cupo de tu plan de ChatGPT para las tareas de texto; '
-      + 'OpenAI API genera las imágenes y Cartesia la voz con sus propias claves. '
+      + 'OpenRouter genera las imágenes y Cartesia la voz con sus propias claves. '
       + 'Esta guía te ayuda a conectar cada servicio.'),
     h('ol', { clase: 'inicio-pasos' },
       h('li', {}, h('b', {}, 'Codex'), ': tu cuenta, no una clave. Escribe el guion, el '
         + 'catálogo visual y los rótulos, y mueve al asistente de la burbuja.'),
-      h('li', {}, h('b', {}, 'OpenAI'), ': con ella se dibujan los planos.'),
+      h('li', {}, h('b', {}, 'OpenRouter'), ': genera los planos con los créditos que ya tienes.'),
       h('li', {}, h('b', {}, 'Cartesia'), ': la voz que narra.'),
       h('li', {}, h('b', {}, 'Jamendo y FreeSound'), ': música y efectos. Son las dos únicas que se '
         + 'pueden dejar para luego; las otras tres hacen falta.')),
@@ -10941,27 +11027,24 @@ function tarjetaCodexInicio() {
   }
   return partes;
 }
-function tarjetaOpenAIInicio() {
+function tarjetaImagenInicio() {
   const ficha = estadoConfig().ficha;
-  const puesta = !!(ficha && ficha.openai && ficha.openai.length);
+  const puesta = !!(ficha && ficha.openrouter && ficha.openrouter.puesta);
   return [
     h('div', { clase: 'pista' },
-      'Con esta clave se dibujan los planos: sin ella no hay vídeo. Cada imagen '
-      + 'se paga por separado. El coste cambia según el número de planos, las '
-      + 'referencias adjuntas y la calidad; el Estudio estima el total antes de generar.'),
+      'OpenRouter genera las imágenes del proyecto con el modelo elegido en '
+      + 'Configuración. Codex se ocupa del guion y Cartesia de la voz. Cada imagen '
+      + 'se cobra a los créditos de OpenRouter.'),
     h('ol', { clase: 'inicio-pasos' },
-      h('li', {}, 'Entra en ', enlaceInicio('platform.openai.com', 'https://platform.openai.com/'),
-        ' y crea una cuenta si no la tienes.'),
-      h('li', {}, 'Carga saldo en ',
-        enlaceInicio('Billing', 'https://platform.openai.com/settings/organization/billing/overview'),
-        ' («Add to credit balance»). Sin saldo la clave existe pero no genera nada.'),
-      h('li', {}, 'Ve a ', enlaceInicio('API keys', 'https://platform.openai.com/api-keys'),
-        ' → «Create new secret key». Cópiala entera (empieza por sk-) y pégala aquí: '
-        + 'OpenAI sólo la enseña una vez.')),
-    ficha ? estadoClaveInicio(puesta, puesta ? ficha.openai[0].cola : '')
+      h('li', {}, 'Crea una clave desde ', enlaceInicio('OpenRouter Keys', 'https://openrouter.ai/keys'), '.'),
+      h('li', {}, 'Elige OpenRouter en Configuración → Proveedor de imágenes.'),
+      h('li', {}, 'Pega la clave (empieza por sk-or-) y guarda.')),
+    ficha ? estadoClaveInicio(puesta, puesta ? ficha.openrouter.cola : '')
       : h('div', { clase: 'cargando' }, 'leyendo las claves…'),
-    campoClaveInicio('sk-…', clave => guardarClaves({
-      openai: [{ etiqueta: '', clave, activa: true }] })),
+    campoClaveInicio('sk-or-…', clave => guardarClaves({
+      openrouter: { clave },
+      imagen: { proveedor: 'openrouter', modelo: 'bytedance-seed/seedream-5-0-flash' },
+    })),
   ];
 }
 
@@ -11036,18 +11119,19 @@ function tarjetaFinalInicio() {
     pastillaEstado(puesta ? 'ok' : (opcional ? 'parcial' : 'error'),
       puesta ? 'puesta' : (opcional ? 'para luego' : 'sin poner')),
     h('span', {}, nombre));
-  const faltan = [!codex, !(ficha.openai && ficha.openai.length), !(ficha.cartesia && ficha.cartesia.puesta)]
+  const imagenLista = !!(ficha.imagen && ficha.imagen.puesta);
+  const faltan = [!codex, !imagenLista, !(ficha.cartesia && ficha.cartesia.puesta)]
     .filter(Boolean).length;
   return [
     fila('Codex — guion, análisis y asistente', codex),
-    fila('OpenAI — imágenes', !!(ficha.openai && ficha.openai.length)),
+    fila(`${(ficha.imagen || {}).proveedor === 'openrouter' ? 'OpenRouter' : 'OpenAI'} — imágenes`, imagenLista),
     fila('Cartesia — voz', !!(ficha.cartesia && ficha.cartesia.puesta)),
     fila('Jamendo — música', !!(ficha.jamendo && ficha.jamendo.puesta), true),
     fila('FreeSound — efectos', !!(ficha.freesound && ficha.freesound.puesta), true),
     faltan
       ? h('div', { clase: 'caja-aviso' },
         `Falta${faltan > 1 ? 'n' : ''} ${faltan} de las tres que hacen falta para un vídeo `
-        + '(Codex, OpenAI y Cartesia). Sin ellas no sale el vídeo entero: se '
+        + '(Codex, proveedor de imágenes y Cartesia). Sin ellas no sale el vídeo entero: se '
         + 'ponen desde Configuración, el engranaje de arriba a la derecha.')
       : h('div', { clase: 'caja-info' },
         'Está todo. Lo siguiente es crear un estilo (cómo se dibuja y cómo se '

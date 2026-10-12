@@ -102,6 +102,9 @@ def _vacio():
     return {
         "version": 1,
         "openai": [],
+        "openrouter": {"clave": ""},
+        "imagen": {"proveedor": "openai",
+                   "modelo": "bytedance-seed/seedream-5-0-flash"},
         "cartesia": {"clave": ""},
         # La musica y los efectos: se buscan en catalogos con licencia libre y
         # cada uno pide su clave. Sin ellas el paso de sonido no busca nada y lo
@@ -149,6 +152,19 @@ def _normalizar(datos):
             "activa": cruda.get("activa") is not False,
         })
     base["openai"] = cuentas[:MAX_OPENAI]
+
+    openrouter = datos.get("openrouter")
+    if isinstance(openrouter, dict):
+        base["openrouter"]["clave"] = str(openrouter.get("clave") or "").strip()
+    elif isinstance(openrouter, str):
+        base["openrouter"]["clave"] = openrouter.strip()
+
+    imagen = datos.get("imagen")
+    if isinstance(imagen, dict):
+        proveedor = str(imagen.get("proveedor") or "openai").strip().lower()
+        modelo = str(imagen.get("modelo") or "bytedance-seed/seedream-5-0-flash").strip()
+        if proveedor in ("openai", "openrouter"):
+            base["imagen"] = {"proveedor": proveedor, "modelo": modelo}
 
     cartesia = datos.get("cartesia")
     if isinstance(cartesia, dict):
@@ -325,6 +341,34 @@ def _fusionar(actual, peticion):
     else:
         salida["openai"] = actual["openai"]
 
+    if "openrouter" in peticion:
+        ficha = peticion.get("openrouter")
+        clave = ficha.get("clave") if isinstance(ficha, dict) else ficha
+        clave = str(clave or "").strip()
+        if clave == CONSERVAR:
+            clave = actual["openrouter"]["clave"]
+        if clave:
+            _validar_clave_openrouter(clave)
+        salida["openrouter"]["clave"] = clave
+    else:
+        salida["openrouter"] = actual["openrouter"]
+
+    if "imagen" in peticion:
+        ficha = peticion.get("imagen")
+        if not isinstance(ficha, dict):
+            raise ErrorClaves("'imagen' tiene que indicar proveedor y modelo")
+        proveedor = str(ficha.get("proveedor") or "").strip().lower()
+        modelo = str(ficha.get("modelo") or "").strip()
+        if proveedor not in ("openai", "openrouter"):
+            raise ErrorClaves("el proveedor de imagen debe ser openai u openrouter")
+        if proveedor == "openrouter" and modelo not in (
+                "bytedance-seed/seedream-5-0-flash",
+                "bytedance-seed/seedream-4.5"):
+            raise ErrorClaves("modelo de OpenRouter no admitido para imágenes")
+        salida["imagen"] = {"proveedor": proveedor, "modelo": modelo}
+    else:
+        salida["imagen"] = actual["imagen"]
+
     # LAS TRES CLAVES SUELTAS, con la misma regla: la que llega como CONSERVAR
     # es la que ya habia. Sin eso, editar la de Jamendo borraria la de Cartesia,
     # porque la clave de verdad no baja al navegador NUNCA y la pantalla manda
@@ -346,6 +390,11 @@ def _fusionar(actual, peticion):
     else:
         salida["claude_cli"] = actual["claude_cli"]
     return salida
+
+
+def _validar_clave_openrouter(clave):
+    if len(clave) < 24 or re.search(r"\s", clave) or not clave.startswith("sk-or-"):
+        raise ErrorClaves("la clave de OpenRouter debe comenzar por sk-or- y no llevar espacios")
 
 
 def _cuentas_cli_pedidas(crudo, actuales):
@@ -525,6 +574,17 @@ def resumen(datos=None):
             "cola": tapar(c["clave"]),
             "activa": c["activa"],
         } for c in datos["openai"]],
+        "openrouter": {
+            "puesta": bool(datos["openrouter"]["clave"]),
+            "cola": tapar(datos["openrouter"]["clave"]),
+        },
+        "imagen": {
+            "proveedor": datos["imagen"]["proveedor"],
+            "modelo": datos["imagen"]["modelo"],
+            "puesta": bool(datos["openrouter"]["clave"])
+                if datos["imagen"]["proveedor"] == "openrouter"
+                else bool(datos["openai"]),
+        },
         "cartesia": {
             "puesta": bool(datos["cartesia"]["clave"]),
             "cola": tapar(datos["cartesia"]["clave"]),

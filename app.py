@@ -6377,6 +6377,8 @@ def guardar_claves(cuerpo: dict = Body(default=None)):
         raise ErrorApi(500, f"no se ha podido escribir el almacen de claves: {fallo}")
     anotar_global("claves_guardadas", {
         "openai": len(ficha["openai"]),
+        "openrouter": ficha["openrouter"]["puesta"],
+        "proveedor_imagen": ficha["imagen"]["proveedor"],
         "cartesia": ficha["cartesia"]["puesta"],
         "cuentas_cli": len(ficha["claude_cli"]["cuentas"])})
     ficha["cuentas_imagen"] = _cuentas_de_imagen()
@@ -6700,8 +6702,10 @@ def _foto_para_asistente(pid, pantalla=None):
     # -- claves y cuentas (sin ninguna clave dentro)
     try:
         resumen = _claves().resumen()
-        lineas.append("claves: OpenAI (imagenes) "
-                      + ("puesta" if resumen["openai"] else
+        proveedor_imagen = resumen.get("imagen", {}).get("proveedor", "openai")
+        imagen_puesta = resumen.get("imagen", {}).get("puesta", False)
+        lineas.append(f"claves: {proveedor_imagen} (imagenes) "
+                      + ("puesta" if imagen_puesta else
                          "SIN PONER (sin ella no se generan imagenes)")
                       + "; Cartesia (voz) "
                       + ("puesta" if resumen["cartesia"]["puesta"] else "sin poner")

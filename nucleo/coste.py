@@ -64,9 +64,10 @@ RUTA_GLOBAL = (os.environ.get("ESTUDIO_COSTE_GLOBAL")
                or os.path.join(RAIZ_ESTUDIO, "coste_global.jsonl"))
 NOMBRE_COSTE = "coste.jsonl"
 
-PROVEEDORES = ("openai", "tts", "codex_plan", "claude_cli")
+PROVEEDORES = ("openai", "openrouter", "tts", "codex_plan", "claude_cli")
 SIN_DOLARES = ("codex_plan", "claude_cli")
-ETIQUETAS = {"openai": "OpenAI", "tts": "TTS", "codex_plan": "Codex (plan)",
+ETIQUETAS = {"openai": "OpenAI", "openrouter": "OpenRouter (imágenes)",
+             "tts": "TTS", "codex_plan": "Codex (plan)",
              "claude_cli": "Claude (histórico)"}
 
 AVISO_PRESUPUESTO = 0.8                  # fraccion a partir de la cual se avisa
@@ -425,10 +426,12 @@ def cabecera(proveedores, total_usd):
         return f"${ficha['usd'] or 0:.2f}"
 
     abierto = proveedores.get("openai") or _vacio("openai")
+    openrouter = proveedores.get("openrouter") or _vacio("openrouter")
     voz = proveedores.get("tts") or _vacio("tts")
     cli = proveedores.get("codex_plan") or _vacio("codex_plan")
     return "     ".join([
         f"OpenAI  {importe(abierto)} · {corto(abierto['tokens']['total'])} tok",
+        f"OpenRouter  {importe(openrouter)} · {openrouter['cantidad']['imagenes']} img",
         f"TTS  {importe(voz)} · {corto(voz['cantidad']['caracteres'])} car",
         f"Codex  {corto(cli['tokens']['total'])} tok",
         f"TOTAL  ${total_usd:.2f}",
@@ -608,6 +611,20 @@ def reportar_openai(usage, calidad, tamano, imagenes=1, operacion="imagen",
                    usd_estimado=True, detalle=ficha)
 
 
+def reportar_openrouter(usage, coste, estimado=False, operacion="imagen",
+                        unidad=None, detalle=None):
+    """Anota el importe devuelto por OpenRouter o su tarifa publicada de respaldo."""
+    usage = usage if isinstance(usage, dict) else {}
+    ficha = dict(detalle or {})
+    ficha["coste"] = {"via": "tarifa_modelo" if estimado else "usage.cost"}
+    return _anotar("openrouter", operacion, unidad=unidad,
+                   tokens={"entrada": usage.get("prompt_tokens"),
+                           "salida": usage.get("completion_tokens"),
+                           "cache": usage.get("cached_tokens")},
+                   cantidad={"imagenes": 1}, usd=coste,
+                   usd_estimado=estimado, detalle=ficha)
+
+
 def reportar_tts(caracteres, operacion="sintesis", unidad=None, tokens=None,
                  detalle=None):
     """Anota una sintesis con los caracteres que el motor de voz envio de verdad."""
@@ -758,10 +775,15 @@ def _medir_imagen(original):
         meta = meta if isinstance(meta, dict) else {}
         calidad = kwargs.get("quality") or meta.get("quality") or "low"
         tamano = meta.get("tamano") or kwargs.get("tamano") or "apaisado"
-        registro = reportar_openai(meta.get("usage"), calidad, tamano,
-                                   detalle={"modelo": meta.get("modelo"),
-                                            "refs": meta.get("refs"),
-                                            "segundos": meta.get("segundos")})
+        detalle = {"modelo": meta.get("modelo"), "refs": meta.get("refs"),
+                   "segundos": meta.get("segundos")}
+        if meta.get("proveedor") == "openrouter":
+            registro = reportar_openrouter(
+                meta.get("usage"), meta.get("coste"),
+                estimado=bool(meta.get("coste_estimado")), detalle=detalle)
+        else:
+            registro = reportar_openai(meta.get("usage"), calidad, tamano,
+                                       detalle=detalle)
         # Y EL IMPORTE DE VERDAD SE DEVUELVE, no solo se anota.
         #
         # El motor trae en `meta["coste"]` el precio de su TABLA POR IMAGEN
