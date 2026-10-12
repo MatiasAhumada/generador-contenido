@@ -520,15 +520,15 @@ def prueba_fallos_cli():
     for resultado, esperado, texto in casos:
         original = simular_cli(resultado)
         try:
-            falla(lambda: p3_guion._llamar_claude("hola", opciones, carpeta),
+            falla(lambda: p3_guion._llamar_codex("hola", opciones, carpeta),
                   esperado, texto)
         finally:
             p3_guion.subprocess.Popen = original
 
     comprobar(COLGADO.matado,
               "al vencer el tiempo se mata el proceso (y con el, sus hijos)")
-    comprobar(os.path.exists(p3_guion._localizar_claude()),
-              f"encuentra el CLI: {p3_guion._localizar_claude()}")
+    comprobar(os.path.exists(p3_guion._localizar_codex()),
+              f"encuentra el CLI: {p3_guion._localizar_codex()}")
 
 
 def prueba_reintento():

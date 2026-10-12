@@ -68,7 +68,7 @@ class ErrorReceta(ValueError):
 #   cuesta      si gasta dinero. Lo que cuesta se dice antes de pulsar.
 #   opcional    si se puede correr sin ella (y entonces la receta la ofrece
 #               con un interruptor). Lo no opcional siempre va.
-#   fase        la fase de cli_claude cuyo ajuste usa, si usa alguno
+#   fase        la fase de cli_codex cuyo ajuste usa, si usa alguno
 #
 # EL ORDEN NO ES ESTETICO. Dos reglas que cuestan dinero si se rompen:
 #   - las CARTELAS van antes que los planos: un plano que va a ser cartela no

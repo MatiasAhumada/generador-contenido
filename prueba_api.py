@@ -3484,13 +3484,13 @@ def _servicio():
     se lo pone al servidor--. Lo encontro una regresion: con `_correr_regrabar`
     corriendo la revision a ciegas, la reescritura de una nota salio al CLI de
     verdad, cuatro segundos de opus antes de que la prueba se pusiera roja.
-    Toda llamada pasa por `localizar` (`cli_claude.construir_orden`), y el
+    Toda llamada pasa por `localizar` (`cli_codex.construir_orden`), y el
     modulo esta cargado dos veces: suelto, como lo importa `app.py`, y dentro
     del paquete `pasos`.
     """
     sys.path.insert(0, RAIZ_ESTUDIO)
     import app as servidor                                    # noqa: PLC0415
-    for nombre in ("cli_claude", "pasos.cli_claude"):
+    for nombre in ("cli_codex", "pasos.cli_codex"):
         modulo = sys.modules.get(nombre)
         if modulo is not None:
             modulo.localizar = _sin_cli_de_verdad

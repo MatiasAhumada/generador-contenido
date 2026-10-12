@@ -1,10 +1,10 @@
-"""El asistente: un chat que contesta con el CLI de Claude y con el Estudio delante.
+"""El asistente: un chat que contesta con Codex CLI y con el Estudio delante.
 
 QUE ES
 ------
 La burbuja de abajo a la derecha. Quien la abre pregunta en castellano --«me ha
 dado este error», «por que assets esta en naranja», «donde consigo la clave de
-Cartesia», «la tanda lleva parada diez minutos»-- y contesta el CLI de Claude
+Cartesia», «la tanda lleva parada diez minutos»-- y contesta Codex CLI
 con la MISMA cuenta con la que el Estudio escribe los guiones. No hay ninguna
 clave nueva que pedir: si el CLI tiene sesion, el asistente responde; si no, lo
 dice y manda a entrar primero.
@@ -66,6 +66,7 @@ recibio, que es lo que dejan comprobar las pruebas de la API.
 """
 import json
 import os
+import shutil
 import sys
 import tempfile
 import threading
@@ -73,16 +74,16 @@ import time
 import uuid
 
 try:
-    from . import cli_claude, mcp_estudio
+    from . import cli_codex, mcp_estudio
 except ImportError:  # ejecutado con la carpeta pasos en sys.path
-    import cli_claude
+    import cli_codex
     import mcp_estudio
 
 RAIZ_ESTUDIO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 #: Con que contesta. Ver la cabecera: un chat pide segundos, no minutos.
-MODELO = os.environ.get("ESTUDIO_ASISTENTE_MODELO") or "sonnet"
-ESFUERZO = os.environ.get("ESTUDIO_ASISTENTE_ESFUERZO") or "medium"
+MODELO = os.environ.get("ESTUDIO_ASISTENTE_MODELO") or "haiku"
+ESFUERZO = os.environ.get("ESTUDIO_ASISTENTE_ESFUERZO") or "low"
 
 #: Techo de UN turno. Con herramientas de lectura un turno puede encadenar
 #: varias llamadas; siete minutos es mucho para un chat, pero menos deja fuera
@@ -106,7 +107,30 @@ def api_del_estudio():
     al arrancar; sin el (una suite, el modulo suelto) no se cargan."""
     return (os.environ.get("ESTUDIO_API") or "").strip()
 
-#: Todo lo demas, por nombre, ademas de lo que veta `cli_claude` de fabrica.
+
+def workspace_lectura(origen=None):
+    """Crea una copia del código sin credenciales ni datos de proyectos.
+
+    El sandbox de Codex permite leer el directorio de trabajo. Por eso el
+    asistente no recibe como cwd la carpeta real del Estudio, que contiene
+    `secretos/` en una instalación local.
+    """
+    global _WORKSPACE
+    origen = os.path.abspath(origen or RAIZ_ESTUDIO)
+    with _LOCK:
+        if _WORKSPACE and os.path.isdir(_WORKSPACE):
+            return _WORKSPACE
+        destino = tempfile.mkdtemp(prefix="estudio_codex_lectura_")
+        ignorar = shutil.ignore_patterns(
+            ".git", ".venv", "venv", "node_modules", "__pycache__",
+            "secretos", "proyectos", "banco", "cache", ".env", "*.env",
+            "*.credentials.json", "estado.json", "coste_global.jsonl",
+            "bitacora_global.jsonl", "estadisticas.json", "RETOMAR.md")
+        shutil.copytree(origen, destino, dirs_exist_ok=True, ignore=ignorar)
+        _WORKSPACE = destino
+        return destino
+
+#: Todo lo demas, por nombre, ademas de lo que veta `cli_codex` de fabrica.
 #: `Bash` es la herramienta con la que se sale de una carpeta; `Write` y `Edit`
 #: convertirian una pregunta en un cambio en el codigo; `WebFetch` y
 #: `WebSearch` sacarian el estado del Estudio a internet.
@@ -135,6 +159,7 @@ MAX_PREGUNTA = 20000
 
 _LOCK = threading.RLock()
 _CHARLAS = {}
+_WORKSPACE = ""
 
 
 class ErrorAsistente(ValueError):
@@ -156,11 +181,8 @@ def simulado():
 def sistema():
     """El prompt de sistema, en UNA linea y sin acentos.
 
-    Una linea porque en Windows el CLI se invoca a traves de claude.cmd y un
-    salto de linea dentro de un argumento parte la orden (`construir_orden` lo
-    comprueba). Sin acentos porque va como ARGUMENTO y no por stdin: la consola
-    lo recodifica con su pagina de codigos y una enye llega como dos letras
-    raras. Lo que va por stdin (el mensaje) si lleva acentos.
+    Una sola linea y sin acentos por compatibilidad con argumentos de CLI. El
+    mensaje del usuario viaja por stdin y conserva sus acentos.
     """
     return (
         "Eres el asistente de AS Video Studio, un producto que convierte texto en "
@@ -172,14 +194,13 @@ def sistema():
         "una clave, cuanto va a costar algo. Contestas en castellano, en pocas "
         "frases, con pasos concretos y numerados cuando hay que hacer algo, y "
         "diciendo donde esta cada cosa en la pantalla (Configuracion es el "
-        "engranaje de arriba a la derecha; las claves y las cuentas de Claude se "
-        "cambian ahi). Tienes el codigo del Estudio en la carpeta de trabajo y "
-        "puedes leerlo con Read, Grep y Glob cuando la foto del estado y la "
-        "documentacion no basten, por ejemplo para buscar el texto exacto de un "
-        "error y ver por que salta; no tienes Bash, no puedes escribir nada y no "
-        "sales a internet. Tienes ademas las herramientas del Estudio (servidor "
+        "engranaje de arriba a la derecha; la sesion de Codex se configura en "
+        "Codex CLI). Tienes una copia de solo lectura del codigo, sin secretos "
+        "ni proyectos privados, que puedes consultar cuando la foto del estado "
+        "y la documentacion no basten. No puedes cambiar archivos ni salir a "
+        "internet. Tienes ademas las herramientas del Estudio (servidor "
         "estudio): probar_claves prueba de verdad cada clave contra su servicio, "
-        "probar_claude prueba las cuentas de Claude, estado_estudio da la foto "
+        "probar_codex prueba la sesion local de Codex, estado_estudio da la foto "
         "actual, trabajos lista las generaciones con su error, ficha_paso y "
         "bitacora miran un paso o el historial de un proyecto, cancelar_trabajo "
         "para uno colgado y salud_servicio dice si el servicio va. Usalas sin "
@@ -277,7 +298,7 @@ def mensaje_de_turno(foto, pregunta):
 # ------------------------------------------------------------------ ejecutar
 
 class Avance:
-    """Lo minimo que `cli_claude.ejecutar` necesita para poder cancelar."""
+    """Lo minimo que `cli_codex.ejecutar` necesita para poder cancelar."""
 
     def __init__(self):
         self.cancelado = False
@@ -287,8 +308,8 @@ class Avance:
 def fichero_mcp(proyecto=""):
     """Escribe la configuracion MCP del servidor `estudio` y devuelve su ruta.
 
-    Va a un fichero y no como JSON en la linea de ordenes: en Windows el CLI se
-    invoca a traves de claude.cmd y las comillas de un JSON no sobreviven. El
+    Va a un fichero y no como JSON en la linea de ordenes, para no depender de
+    cómo el shell interprete comillas. El
     fichero se reescribe en cada turno porque lleva el proyecto abierto.
     Devuelve "" si no hay API a la que hablar (una suite, el modulo suelto).
     """
@@ -298,8 +319,7 @@ def fichero_mcp(proyecto=""):
     config = {"mcpServers": {"estudio": {
         "command": sys.executable,
         "args": [os.path.abspath(mcp_estudio.__file__)],
-        "env": {"ESTUDIO_API": api, "ESTUDIO_PROYECTO_ABIERTO": str(proyecto or ""),
-                "ESTUDIO_SECRETOS": os.environ.get("ESTUDIO_SECRETOS", "")},
+        "env": {"ESTUDIO_API": api, "ESTUDIO_PROYECTO_ABIERTO": str(proyecto or "")},
     }}}
     ruta = os.path.join(tempfile.gettempdir(), f"estudio_mcp_{os.getpid()}.json")
     with open(ruta, "w", encoding="utf-8") as fh:
@@ -311,18 +331,19 @@ def ejecutar_cli(mensaje, extra=(), avance=None, raiz=None, carpetas_extra=(),
                  proyecto=""):
     """UNA llamada al CLI con las herramientas y los vetos del asistente.
 
-    -> (texto, sobre). Lanza lo mismo que `cli_claude.ejecutar`.
+    -> (texto, sobre). Lanza lo mismo que `cli_codex.ejecutar`.
     """
-    raiz = os.path.abspath(raiz or RAIZ_ESTUDIO)
+    raiz = workspace_lectura(raiz or RAIZ_ESTUDIO)
     orden_extra = list(extra or [])
+    if not any(str(x) == "--resume" for x in orden_extra):
+        orden_extra.append("--persistir")
     mcp = fichero_mcp(proyecto)
     if mcp:
         orden_extra += ["--mcp-config", mcp]
-    for carpeta in carpetas_extra or ():
-        if carpeta and os.path.isdir(carpeta):
-            orden_extra += ["--add-dir", os.path.abspath(carpeta)]
+    # No se dan directorios de proyectos privados a Codex. El contexto actual
+    # llega resumido por la foto de estado que prepara app.py.
     vetadas = tuple(HERRAMIENTAS_VETADAS) + tuple(vetos_de_lectura(raiz))
-    return cli_claude.ejecutar(
+    return cli_codex.ejecutar(
         mensaje, modelo=MODELO, esfuerzo=ESFUERZO, cwd=raiz,
         tiempo_max_s=TIEMPO_MAX_S, sistema=sistema(),
         herramientas_vetadas=vetadas, avance=avance, extra=orden_extra,
@@ -475,7 +496,7 @@ class Charla:
                                 extra=["--resume", sesion], avance=avance,
                                 raiz=raiz, carpetas_extra=carpetas_extra,
                                 proyecto=self.pid)
-            except (cli_claude.TiempoAgotado, cli_claude.LimiteAgotado):
+            except (cli_codex.TiempoAgotado, cli_codex.LimiteAgotado):
                 # ni un plazo vencido ni un cupo agotado se arreglan volviendo
                 # a empezar: volverian a pasar, y con la documentacion delante
                 raise

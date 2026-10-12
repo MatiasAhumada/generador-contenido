@@ -32,13 +32,16 @@ la vez y el cortafuegos sólo deja entrar por el 80 y el 443.
 ├── login/          el acceso (Node) + su .env y su base de datos
 ├── datos/          TUS COSAS: proyectos, estilos, claves, gasto, ajustes
 │   ├── entorno     qué variable manda cada cosa a su sitio
-│   └── secretos/   las claves de API y las sesiones del CLI de Claude (chmod 700)
-└── home/           el HOME del servicio — lo necesita el navegador
+│   └── secretos/   claves de OpenAI, Cartesia, Jamendo y FreeSound (chmod 700)
+└── home/           HOME del servicio: perfil del navegador y sesión de Codex CLI
 ```
 
 **Los datos viven fuera del código a propósito**: `asvs actualizar` borra y
 reemplaza `app/` entera y no toca `datos/`. Si estuvieran dentro, actualizar
 sería un riesgo cada vez.
+
+La sesión de Codex vive en `/opt/as-video-studio/home/.codex` y se conecta con
+`asvs codex-login`. No se incluye en las actualizaciones.
 
 Y se reemplaza con `rsync --delete`, no con un `tar` por encima. Un tar
 *superpone*: un fichero que llegó ahí por accidente no se va nunca, y acabas con

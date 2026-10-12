@@ -45,7 +45,7 @@ el estilo obligaba a acordarse de cambiarlas en cada encargo.
 
 Una línea en la consola del VPS, cinco minutos, y queda montado con su dirección,
 su candado y su contraseña — incluido todo lo que hace falta alrededor (ffmpeg,
-el navegador que dibuja los planos, las fuentes, el CLI de Claude):
+el navegador que dibuja los planos y las fuentes):
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/NeverBlink/as-video-studio/main/instalar.sh -o instalar.sh && bash instalar.sh
@@ -73,36 +73,50 @@ autentica nada, a propósito (ver «Quién está dentro» más abajo).
 | **ffmpeg** y **ffprobe** | la voz, la música y el MP4 | los pasos que los usan lo dicen |
 | **Microsoft Edge** (o Chrome) | rasterizar cada plano | igual |
 | Las **fuentes** de los subtítulos y las cartelas | medir y dibujar el texto | ver el aviso de `motores/README.md` |
-| El **CLI de Claude**, con sesión | el guion, el catálogo visual, los rótulos | no hay vídeo |
+| **Codex CLI**, con sesión de ChatGPT (`codex login`) | el guion, el análisis visual y el asistente | no hay generación de texto |
 | Una **clave de OpenAI** | las imágenes | no hay vídeo |
 | Una **clave de Cartesia** | la voz | no hay vídeo |
 | Las de **Jamendo** y **FreeSound** | música y efectos | el vídeo sale sin ellos; son las únicas prescindibles |
+
+En tu PC, instala/actualiza Codex CLI y conecta la cuenta una vez desde la
+misma sesión de Windows que ejecutará el estudio:
+
+```powershell
+npm install -g @openai/codex@latest
+codex login
+```
+
+La generación de texto consume el uso incluido de Codex y sus límites; no usa
+facturación de OpenAI API. Las imágenes siguen usando OpenAI API y la voz
+Cartesia, con sus planes y costes separados. El Estudio estima el coste de
+generación antes de iniciar cada vídeo.
 
 Las claves se ponen en **Configuración** (el engranaje de arriba a la derecha) y
 se guardan en `secretos/claves.json`, fuera del control de versiones. Ninguna
 clave baja entera al navegador: la pantalla ve la etiqueta, los cuatro últimos
 caracteres y el estado.
 
-**La primera vez, una guía de inicio** las pide de una en una —Claude la
-primera, porque es un login y no una clave— con los pasos y el enlace de donde
-se consigue cada una. Se ve una vez por instalación (la marca vive en los
+**La primera vez, una guía de inicio** explica cómo conectar Codex y pide las
+claves de imagen y voz con los pasos y el enlace de donde se consiguen. Se ve
+una vez por instalación (la marca vive en los
 ajustes del servidor, no en el navegador) y se vuelve a abrir desde
 Configuración.
 
-**Y abajo a la derecha hay un asistente.** Es un chat que contesta con tu propia
-cuenta de Claude —la misma con la que se escribe el guion— y que tiene delante
-la documentación del producto, el código (sólo lectura: Read, Grep y Glob) y una
+**Y abajo a la derecha hay un asistente.** Es un chat que contesta con tu sesión
+local de Codex —la misma que escribe el guion— y que tiene delante la
+documentación del producto, una copia del código en solo lectura y una
 foto del estado del Estudio en el momento de cada pregunta: qué claves hay, qué
 vídeo está abierto, qué paso está parado y con qué error. Y tiene manos:
 prueba las claves contra su servicio, mira los trabajos y la bitácora, y para
 un trabajo colgado, sin pedir permisos (`pasos/mcp_estudio.py`). Sin sesión de
-Claude lo dice y manda a entrar; con el cupo agotado, dice hasta cuándo. Lo
-que puede y no puede leer —`secretos/` no, por regla de permiso del CLI— está
-en `pasos/asistente.py`.
+Codex lo dice y muestra `codex login`; si el plan alcanza un límite, explica el
+error. La copia del asistente excluye secretos, credenciales y proyectos
+privados; el comportamiento está en `pasos/asistente.py`.
 
-**«Puesta» no es «funciona».** Configuración tiene «Probar todas las claves»
-(cada una contra su servicio, sin gastar) y cada cuenta de Claude enseña, al
-lado de la sesión, cómo respondió la última vez: funciona, sin cupo, sesión
+**«Puesta» no es «funciona».** Configuración tiene «Probar todas las claves».
+Las claves de API se verifican con consultas de lectura; Codex hace una
+respuesta mínima, que consume una pequeña cantidad del uso incluido. El estado
+de Codex muestra cómo respondió la última vez: funciona, sin cupo o sesión
 caducada. Lo apunta cada llamada al CLI (`pasos/salud_cli.py`).
 
 ---

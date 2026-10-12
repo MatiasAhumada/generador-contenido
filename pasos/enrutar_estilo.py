@@ -92,9 +92,9 @@ hace imposible enseñar lo que va a pasar antes de que pase.
 import time
 
 try:
-    from . import cli_claude, comun, moodboard, p7_callouts
+    from . import cli_codex, comun, moodboard, p7_callouts
 except ImportError:                # ejecutado con la carpeta pasos en sys.path
-    import cli_claude
+    import cli_codex
     import comun
     import moodboard
     import p7_callouts
@@ -612,10 +612,10 @@ def repartir(frase, estado="", ajuste=None, avisar=None, cwd=None,
                 "resumen": "sin nada escrito: se rehace el estilo entero"}
 
     ajuste = dict(ajuste or {})
-    modelo = cli_claude.normalizar_modelo(ajuste.get("modelo"),
+    modelo = cli_codex.normalizar_modelo(ajuste.get("modelo"),
                                           defecto=MODELO_POR_DEFECTO,
                                           estricto=False)
-    esfuerzo = cli_claude.normalizar_esfuerzo(ajuste.get("esfuerzo"),
+    esfuerzo = cli_codex.normalizar_esfuerzo(ajuste.get("esfuerzo"),
                                               defecto=ESFUERZO_POR_DEFECTO,
                                               estricto=False)
     instruccion = INSTRUCCION.format(frase=frase, estado=estado or "—",
@@ -623,7 +623,7 @@ def repartir(frase, estado="", ajuste=None, avisar=None, cwd=None,
     arranque = time.time()
     avisar(0.2, "leyendo la corrección para ver qué hace falta rehacer")
     try:
-        texto, _sobre = cli_claude.ejecutar(
+        texto, _sobre = cli_codex.ejecutar(
             instruccion, modelo=modelo, esfuerzo=esfuerzo, cwd=cwd,
             base_tiempo_s=TIEMPO_BASE_S, sistema=SISTEMA,
             herramientas_vetadas=HERRAMIENTAS_VETADAS,

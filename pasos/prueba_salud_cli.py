@@ -3,7 +3,7 @@ herramientas del asistente. Sin red y sin CLI: dobles en los tres sitios.
 
   - salud_cli: que apunte, clasifique y describa cada fallo, y que la clave
     de una cuenta sea su carpeta de sesion;
-  - cli_claude._una_pasada: que TODA llamada apunte la salud de su cuenta, y
+  - cli_codex._una_pasada: que TODA llamada apunte la salud de su cuenta, y
     que una cancelacion no apunte nada;
   - comprobar_claves: cada proveedor con su respuesta buena y su 401, sin
     salir a internet, y el modo simulado;
@@ -25,10 +25,13 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 CARPETA = tempfile.mkdtemp(prefix="salud_prueba_")
 os.environ["ESTUDIO_SECRETOS"] = os.path.join(CARPETA, "secretos")
 
-import cli_claude  # noqa: E402
+import cli_codex  # noqa: E402
 import comprobar_claves  # noqa: E402
 import mcp_estudio  # noqa: E402
 import salud_cli  # noqa: E402
+
+# Esta suite comprueba las respuestas falsas, no el estado OAuth del equipo.
+cli_codex.validar_sesion_chatgpt = lambda *a, **k: None
 
 FALLOS = []
 
@@ -84,9 +87,9 @@ def prueba_salud():
     except ValueError:
         comprobar(True, "un estado desconocido da ValueError")
 
-    igual(salud_cli.clasificar(cli_claude.LimiteAgotado("se acabo"))[0], "cupo",
+    igual(salud_cli.clasificar(cli_codex.LimiteAgotado("se acabo"))[0], "cupo",
           "LimiteAgotado es cupo")
-    igual(salud_cli.clasificar(cli_claude.TiempoAgotado("vencio"))[0], "tiempo",
+    igual(salud_cli.clasificar(cli_codex.TiempoAgotado("vencio"))[0], "tiempo",
           "TiempoAgotado es tiempo")
     igual(salud_cli.clasificar(RuntimeError("el CLI de claude fallo (codigo 1): "
                                             "Not logged in. Please run /login"))[0],
@@ -132,23 +135,23 @@ def prueba_una_pasada():
     seccion("2] toda llamada al CLI apunta la salud de su cuenta")
     cuenta = {"etiqueta": "la mia", "config_dir": os.path.join(CARPETA, "cli9")}
     original = subprocess.Popen
-    original_localizar = cli_claude.localizar
-    cli_claude.localizar = lambda *a, **k: "claude"
+    original_localizar = cli_codex.localizar
+    cli_codex.localizar = lambda *a, **k: "claude"
     try:
         subprocess.Popen = lambda *a, **k: ProcesoFalso({"result": "vale", "session_id": "s"})
-        cli_claude._una_pasada("hola", "haiku", "low", None, 60, 60, None,
-                               cli_claude.HERRAMIENTAS_VETADAS, None, None, None,
+        cli_codex._una_pasada("hola", "haiku", "low", None, 60, 60, None,
+                               cli_codex.HERRAMIENTAS_VETADAS, None, None, None,
                                None, "probar", cuenta)
         igual(salud_cli.de(cuenta)["estado"], "ok", "una llamada buena apunta ok")
 
         subprocess.Popen = lambda *a, **k: ProcesoFalso(
             {"result": "You've hit your weekly limit · resets Sep 14", "is_error": True}, 1)
         try:
-            cli_claude._una_pasada("hola", "haiku", "low", None, 60, 60, None,
-                                   cli_claude.HERRAMIENTAS_VETADAS, None, None, None,
+            cli_codex._una_pasada("hola", "haiku", "low", None, 60, 60, None,
+                                   cli_codex.HERRAMIENTAS_VETADAS, None, None, None,
                                    None, "el guion", cuenta)
             comprobar(False, "tenia que lanzar LimiteAgotado")
-        except cli_claude.LimiteAgotado:
+        except cli_codex.LimiteAgotado:
             comprobar(True, "el cupo agotado sigue lanzando LimiteAgotado")
         ficha = salud_cli.de(cuenta)
         igual(ficha["estado"], "cupo", "y queda apuntado como cupo")
@@ -160,8 +163,8 @@ def prueba_una_pasada():
             al_cancelar = None
         subprocess.Popen = lambda *a, **k: ProcesoFalso({"result": "vale"})
         try:
-            cli_claude._una_pasada("hola", "haiku", "low", None, 60, 60, None,
-                                   cli_claude.HERRAMIENTAS_VETADAS, None, None, Avance(),
+            cli_codex._una_pasada("hola", "haiku", "low", None, 60, 60, None,
+                                   cli_codex.HERRAMIENTAS_VETADAS, None, None, Avance(),
                                    None, "algo", cuenta)
         except RuntimeError:
             pass
@@ -172,7 +175,7 @@ def prueba_una_pasada():
         igual(salud_cli.de(cuenta)["estado"], "ok", "probar con el CLI contestando limpia el cupo")
     finally:
         subprocess.Popen = original
-        cli_claude.localizar = original_localizar
+        cli_codex.localizar = original_localizar
 
 
 # ------------------------------------------------------------------ claves

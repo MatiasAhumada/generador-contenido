@@ -84,7 +84,7 @@ except Exception as fallo:  # noqa: BLE001
 # en el paso de assets dejaria la pantalla de ajustes en blanco.
 sys.path.insert(0, os.path.join(RAIZ_ESTUDIO, "pasos"))
 import ajustes as AJUSTES  # noqa: E402
-import cli_claude as CLI_CLAUDE  # noqa: E402
+import cli_codex as CLI_CODEX  # noqa: E402
 import estadisticas as ESTADISTICAS  # noqa: E402
 
 
@@ -1369,9 +1369,9 @@ def _validar_params(paso_id, nuevos, ctx=None):
             continue
         try:
             if es_modelo:
-                CLI_CLAUDE.normalizar_modelo(valor)
+                CLI_CODEX.normalizar_modelo(valor)
             else:
-                CLI_CLAUDE.normalizar_esfuerzo(valor)
+                CLI_CODEX.normalizar_esfuerzo(valor)
         except ValueError as fallo:
             raise ErrorApi(400, f"{clave}: {fallo}")
 
@@ -1916,7 +1916,7 @@ def describir_voz(pid: str, cuerpo: dict = Body(default=None)):
     idioma = str(datos.get("idioma") or "").strip().lower()
     if not idioma and PASOS_MODULOS is not None:
         idioma = PASOS_MODULOS.p4_voz.idioma_de_salida(ctx.proyecto) or "es"
-    por_fase = CLI_CLAUDE.por_defecto_de("voz_descrita")
+    por_fase = CLI_CODEX.por_defecto_de("voz_descrita")
     ajuste = _ajuste_cli(datos, por_fase["modelo"], por_fase["esfuerzo"])
     trabajo_id = ctx.gestor.lanzar("voz_descrita", _correr_voz_descrita, ctx,
                                    encargo, idioma, ajuste, paso="voz")
@@ -2162,7 +2162,7 @@ def reescribir_bloques_guion(pid: str, cuerpo: dict = Body(default=None)):
     peticion = str(datos.get("peticion") or "").strip()
     if not peticion:
         raise ErrorApi(400, "hace falta 'peticion': que hay que cambiar de ese bloque")
-    por_fase = CLI_CLAUDE.por_defecto_de("revision_audio")
+    por_fase = CLI_CODEX.por_defecto_de("revision_audio")
     ajuste = _ajuste_cli(datos, por_fase["modelo"], por_fase["esfuerzo"])
     trabajo_id = ctx.gestor.lanzar("reescribir_bloques", _correr_reescribir,
                                    ctx, ids, peticion, ajuste, paso="guion")
@@ -2191,7 +2191,7 @@ def regrabar_seccion(pid: str, seccion_id: str, cuerpo: dict = Body(default=None
                            {"trabajo_id": activo["id"],
                             "progreso": activo["progreso"]})
     datos = _cuerpo(cuerpo)
-    por_fase = CLI_CLAUDE.por_defecto_de("revision_audio")
+    por_fase = CLI_CODEX.por_defecto_de("revision_audio")
     ajuste = _ajuste_cli(datos, por_fase["modelo"], por_fase["esfuerzo"])
     trabajo_id = ctx.gestor.lanzar(
         "regrabar_seccion", _correr_regrabar, ctx, seccion_id,
@@ -2588,9 +2588,9 @@ def escribir_tarifas(cuerpo: dict = Body(default=None)):
 
 
 # -------------------------------------------------------- ajustes del CLI
-# Los pasos que llaman al CLI de Claude dejan elegir modelo y esfuerzo. Estas
+# Los pasos que llaman al CLI de Codex dejan elegir modelo y esfuerzo. Estas
 # rutas existen para que esa eleccion sea informada: la lista de opciones sale de
-# UN solo sitio (cli_claude), y el tiempo que cuesta cada una sale del historico
+# UN solo sitio (cli_codex), y el tiempo que cuesta cada una sale del historico
 # real de todos los proyectos, no de un numero escrito a mano en la interfaz.
 
 
@@ -2602,7 +2602,7 @@ def ajustes_cli():
     escritas a mano en sitios distintos se desincronizan solas. Esta es la lista.
     """
     return {
-        **CLI_CLAUDE.catalogo(),
+        **CLI_CODEX.catalogo(),
         "pasos": list(ESTADISTICAS.PASOS_CON_CLI),
         # Ajuste recomendado de cada fase, con el porque. La interfaz lo ensena
         # y lo usa como valor de partida de sus desplegables, para que elegir
@@ -2612,9 +2612,9 @@ def ajustes_cli():
         # ajuste razonado que no llevan historico ('tono', 'voz_descrita'), y
         # dejarlas fuera hacia que su pantalla se anunciara con el defecto
         # general del CLI mientras el backend ejecutaba el de la fase.
-        "por_fase": {fase: CLI_CLAUDE.por_defecto_de(fase)
+        "por_fase": {fase: CLI_CODEX.por_defecto_de(fase)
                      for fase in sorted(set(ESTADISTICAS.PASOS_CON_CLI)
-                                        | set(CLI_CLAUDE.POR_FASE))},
+                                        | set(CLI_CODEX.POR_FASE))},
         "medido": {
             "guion": {"sin_effort_s": 605.8, "con_effort_low_s": 67.0,
                       "nota": "mismo transcript de 9.341 palabras"},
@@ -2913,9 +2913,9 @@ def proponer_catalogo(pid: str, cuerpo: dict = Body(default=None)):
     """
     ctx = contexto(pid)
     datos = _cuerpo(cuerpo)
-    # cada fase trae su ajuste razonado (cli_claude.POR_FASE): el del catalogo
+    # cada fase trae su ajuste razonado (cli_codex.POR_FASE): el del catalogo
     # es el mismo escalon que el del guion, porque es la misma clase de trabajo
-    por_fase = CLI_CLAUDE.por_defecto_de("catalogo_visual")
+    por_fase = CLI_CODEX.por_defecto_de("catalogo_visual")
     ajuste = _ajuste_cli(datos, por_fase["modelo"], por_fase["esfuerzo"])
     trabajo_id = ctx.gestor.lanzar("catalogo_visual", _correr_catalogo, ctx,
                                    ajuste, str(datos.get("peticion") or ""),
@@ -3316,7 +3316,7 @@ def construir_escenarios(pid: str, cuerpo: dict = Body(default=None)):
     """Un clic: deduce del guion quien sale y donde ocurre."""
     ctx = contexto(pid)
     datos = _cuerpo(cuerpo)
-    por_catalogo = CLI_CLAUDE.por_defecto_de("catalogo_visual")
+    por_catalogo = CLI_CODEX.por_defecto_de("catalogo_visual")
     ajuste_catalogo = _ajuste_cli(datos, por_catalogo["modelo"],
                                   por_catalogo["esfuerzo"])
     trabajo_id = ctx.gestor.lanzar("escenarios", _correr_escenarios, ctx,
@@ -3403,7 +3403,7 @@ def analizar_conservacion(pid: str, cuerpo: dict = Body(default=None)):
     """Pregunta por los planos dudosos y devuelve el plan definitivo."""
     ctx = contexto(pid)
     datos = _cuerpo(cuerpo)
-    por_fase = CLI_CLAUDE.por_defecto_de("conservacion")
+    por_fase = CLI_CODEX.por_defecto_de("conservacion")
     ajuste = _ajuste_cli(datos, por_fase["modelo"], por_fase["esfuerzo"])
     trabajo_id = ctx.gestor.lanzar("conservacion", _correr_conservacion, ctx,
                                    ajuste, paso="assets")
@@ -4004,7 +4004,7 @@ def proponer_plan_cartelas(pid: str, cuerpo: dict = Body(default=None)):
     """
     ctx = contexto(pid)
     datos = _cuerpo(cuerpo)
-    por_fase = CLI_CLAUDE.por_defecto_de("plan_cartelas")
+    por_fase = CLI_CODEX.por_defecto_de("plan_cartelas")
     ajuste = _ajuste_cli(datos, por_fase["modelo"], por_fase["esfuerzo"])
     trabajo_id = ctx.gestor.lanzar("plan_cartelas", _correr_plan_cartelas, ctx,
                                    ajuste, paso="assets")
@@ -4382,7 +4382,7 @@ def proponer_redactado(pid: str, cuerpo: dict = Body(default=None)):
     """Escribe el prompt de cada plano, con TODOS los planos delante de una vez."""
     ctx = contexto(pid)
     datos = _cuerpo(cuerpo)
-    por_fase = CLI_CLAUDE.por_defecto_de("redactor")
+    por_fase = CLI_CODEX.por_defecto_de("redactor")
     ajuste = _ajuste_cli(datos, por_fase["modelo"], por_fase["esfuerzo"])
     trabajo_id = ctx.gestor.lanzar("redactor", _correr_redactor, ctx, ajuste,
                                    paso="assets")
@@ -4462,7 +4462,7 @@ def proponer_direccion(pid: str, cuerpo: dict = Body(default=None)):
     """
     ctx = contexto(pid)
     datos = _cuerpo(cuerpo)
-    por_fase = CLI_CLAUDE.por_defecto_de("direccion")
+    por_fase = CLI_CODEX.por_defecto_de("direccion")
     ajuste = _ajuste_cli(datos, por_fase["modelo"], por_fase["esfuerzo"])
     trabajo_id = ctx.gestor.lanzar("direccion", _correr_direccion, ctx, ajuste,
                                    paso="assets")
@@ -5309,7 +5309,7 @@ def aplicar_repaso(pid: str, cuerpo: dict = Body(default=None)):
     """
     ctx = contexto(pid)
     datos = _cuerpo(cuerpo)
-    por_fase = CLI_CLAUDE.por_defecto_de("repaso")
+    por_fase = CLI_CODEX.por_defecto_de("repaso")
     ajuste = _ajuste_cli(datos, por_fase["modelo"], por_fase["esfuerzo"])
     modo = str(datos.get("modo") or MODO_TRAS_REPASO)
     # `sin_montar`: aplica y para antes del MP4. Lo pide la pantalla de las
@@ -5758,7 +5758,7 @@ def _recetas():
 
 def _ajuste_de_fase(receta, fase, extra=None):
     """El modelo y el esfuerzo de una fase: lo de la receta, o su defecto razonado."""
-    por_defecto = CLI_CLAUDE.por_defecto_de(fase)
+    por_defecto = CLI_CODEX.por_defecto_de(fase)
     puesto = ((receta or {}).get("ajustes") or {}).get(fase) or {}
     datos = dict(puesto)
     datos.update(extra or {})
@@ -6340,7 +6340,7 @@ def _cuentas_de_imagen():
         # que hereda de BaseException y no de Exception. Consecuencia medida en
         # un VPS recien instalado: `GET /api/claves` y `PUT /api/claves`
         # contestaban 500, y como la guia de inicio pasa por ahi, **la guia
-        # entera moria en el paso 1** -- el de la cuenta de Claude, que no tiene
+        # entera moria en el paso 1** -- el de la cuenta de Codex, que no tiene
         # nada que ver con OpenAI. «Internal Server Error» y a callar.
         #
         # Sin clave la respuesta honesta es «ninguna cuenta», no un error.
@@ -6404,7 +6404,7 @@ def guardar_claves(cuerpo: dict = Body(default=None)):
 #
 # 
 
-#: El estado de sesion de cada cuenta, cacheado. `claude auth status` lanza un
+#: El estado de sesión del CLI, cacheado. `codex login status` lanza un
 #: proceso node y tarda unas decimas: sin cache, abrir el cajon de
 #: configuracion serian N procesos encadenados DENTRO de la peticion, y ese
 #: cajon se abre para mirar cualquier cosa, no solo las cuentas.
@@ -6427,8 +6427,8 @@ def _sesion_de(cuenta, refrescar=False):
     """Con quien esta logueada una cuenta, sin preguntarlo mil veces."""
     login = _login_cli()
     # UNA CUENTA RECIEN ANADIDA NO ESTA LOGUEADA, aunque preguntar por ella
-    # dijera que si: sin carpeta propia, `claude auth status` contesta por la
-    # sesion POR DEFECTO, o sea que dos cuentas nuevas ensenarian el mismo
+    # dijera que sí: sin carpeta propia, el CLI contesta por la sesión POR
+    # DEFECTO, o sea que dos cuentas nuevas enseñarían el mismo
     # correo y las dos dirian «conectada». Eso no es un estado, es un espejismo.
     # Solo la entrada heredada --la que ya venia funcionando sin carpeta-- tiene
     # derecho a hablar por la sesion por defecto, y se reconoce porque tiene
@@ -6452,17 +6452,16 @@ def _olvidar_sesion(cuenta_id):
 
 
 def _cuenta_cli(cid):
-    """La ficha guardada de una cuenta, o 404."""
-    for cuenta in _claves().cuentas_cli(solo_listas=False):
+    """La ficha sintética de la sesión local de Codex, o 404."""
+    for cuenta in CLI_CODEX.cuentas():
         if cuenta["id"] == cid:
             return cuenta
     raise ErrorApi(404, f"no hay ninguna cuenta del CLI con id '{cid}'")
 
 
 def _cuentas_cli_para_pantalla(refrescar=False):
-    login = _login_cli()
     salida = []
-    for indice, cuenta in enumerate(_claves().cuentas_cli(solo_listas=False)):
+    for indice, cuenta in enumerate(CLI_CODEX.cuentas()):
         sesion = _sesion_de(cuenta, refrescar)
         salida.append({
             "id": cuenta["id"],
@@ -6475,7 +6474,7 @@ def _cuentas_cli_para_pantalla(refrescar=False):
             "carpeta": cuenta["config_dir"],
             "guardada": cuenta["entrada"],
             "sesion": sesion,
-            "intento": login.mirar(cuenta["id"]),
+            "intento": None,
             # como respondio la ultima vez que se le hablo (cupo, sesion
             # caducada...): «con sesion» no es «funciona»
             "salud": _salud_cli().de(cuenta),
@@ -6487,24 +6486,23 @@ def _cuentas_cli_para_pantalla(refrescar=False):
 def probar_claves(cuerpo: dict = Body(default=None)):
     """Prueba cada clave contra su servicio y dice cuál funciona de verdad.
 
-    Llamadas de lectura que no cuestan dinero (pasos/comprobar_claves.py). Con
-    {"claude": true} prueba también las cuentas de Claude con sesión, que es
-    lo que más tarda. Es el botón «Probar todas» y la herramienta
-    `probar_claves` del asistente.
+    Las claves API usan llamadas de lectura. Con {"codex": true}, Codex genera
+    una respuesta mínima que consume una pequeña cantidad del uso incluido.
+    Es el botón «Probar todas» y la herramienta `probar_claves` del asistente.
     """
     datos = _cuerpo(cuerpo)
-    con_claude = datos.get("claude") is not False
+    con_codex = datos.get("codex", datos.get("claude")) is not False
     if PASOS_MODULOS is None:
         raise ErrorApi(503, f"los pasos no se han podido cargar: {ERROR_PASOS}")
     cuentas = []
-    if con_claude:
+    if con_codex:
         try:
             cuentas = [c for c in _candidatas_del_asistente()
                        if _sesion_de(c).get("conectada")]
         except Exception as fallo:  # noqa: BLE001
             raise ErrorApi(500, f"no se ha podido leer el almacen de claves: {fallo}")
     modulo = PASOS_MODULOS.comprobar_claves
-    pruebas = modulo.probar_todas(cuentas_claude=cuentas, con_claude=con_claude)
+    pruebas = modulo.probar_todas(cuentas_codex=cuentas, con_codex=con_codex)
     for cuenta in cuentas:
         if cuenta.get("id"):
             _olvidar_sesion(cuenta["id"])
@@ -6517,37 +6515,19 @@ def probar_claves(cuerpo: dict = Body(default=None)):
 def leer_cuentas_cli(refrescar: int = 0):
     """Las cuentas del CLI en orden, con quién hay logueado en cada una."""
     return {"cuentas": _cuentas_cli_para_pantalla(bool(refrescar)),
-            "max": _claves().MAX_CLI,
-            "carpeta_base": _login_cli().CARPETA_CUENTAS}
+            "max": 1, "proveedor": "codex"}
 
 
 @app.post("/api/claves/cli/{cid}/entrar")
 def entrar_cuenta_cli(cid: str):
-    """Arranca el acceso de esa cuenta y devuelve el enlace donde entrar."""
-    modulo, login = _claves(), _login_cli()
-    cuenta = _cuenta_cli(cid)
-    carpeta = cuenta["config_dir"] or login.carpeta_de(cid)
+    """Codex autentica en la terminal; la interfaz solo muestra instrucciones."""
+    login = _login_cli()
+    _cuenta_cli(cid)
     try:
-        if not cuenta["config_dir"]:
-            login.asegurar_carpeta(cid)
-        # LA CARPETA SE APUNTA YA, PERO `entrada` SE QUEDA COMO ESTABA. Asi la
-        # cuenta se acuerda de donde vive aunque el login se abandone a medias,
-        # y mientras tanto NO entra en la cadena: `cli_claude.cuentas()` solo
-        # coge las que tienen `entrada`. Una carpeta con un login a medias falla
-        # de una forma que no se parece a nada.
-        if carpeta != cuenta["config_dir"]:
-            modulo.apuntar_cuenta_cli(cid, config_dir=carpeta)
-        ficha = login.entrar(cid, carpeta)
-    except modulo.ErrorClaves as fallo:
-        raise ErrorApi(400, str(fallo))
+        ficha = login.entrar(cid)
     except login.ErrorLogin as fallo:
         raise ErrorApi(409, str(fallo))
-    except OSError as fallo:
-        raise ErrorApi(500, f"no se ha podido preparar la carpeta de la "
-                            f"cuenta: {fallo}")
-    _olvidar_sesion(cid)
-    anotar_global("cli_entrar", {"cuenta": cid, "estado": ficha["estado"]})
-    return {"intento": ficha, "cuentas": _cuentas_cli_para_pantalla()}
+    return {"intento": ficha, "cuentas": _cuentas_cli_para_pantalla(True)}
 
 
 @app.post("/api/claves/cli/{cid}/codigo")
@@ -6640,28 +6620,17 @@ def _salud_cli():
     return PASOS_MODULOS.salud_cli
 
 
-#: Con que se pregunta por la sesion POR DEFECTO del CLI (~/.claude), que es
+#: Con que se pregunta por la sesión POR DEFECTO del CLI (~/.codex), que es
 #: con la que corre el Estudio cuando el almacen de claves no tiene ninguna
-#: cuenta (`cli_claude.cuentas`). Lleva `entrada` para que `_sesion_de` acepte
+#: cuenta (`cli_codex.cuentas`). Lleva `entrada` para que `_sesion_de` acepte
 #: hablar por ella: solo la entrada heredada tiene ese derecho.
-_CUENTA_POR_DEFECTO_CLI = {"id": "__defecto__", "etiqueta": "", "config_dir": "",
+_CUENTA_POR_DEFECTO_CLI = {"id": "codex-local", "etiqueta": "Codex local", "config_dir": "",
                            "entrada": True}
 
 
 def _candidatas_del_asistente():
-    """Las cuentas con las que hablaria el motor, en su orden. -> [ficha]
-
-    Es exactamente la regla de `cli_claude.cuentas()`: las que tienen
-    `entrada`, y SIN NINGUNA usable, la sesion por defecto del CLI. Una cuenta
-    anadida y nunca logueada no cuenta ni aqui ni alli: si esto dijera «no»
-    cuando el motor va a contestar, el asistente estaria cerrado justo en la
-    maquina donde el Estudio lleva generando desde el primer dia.
-    """
-    cuentas = _claves().cuentas_cli(solo_listas=False)
-    usables = [c for c in cuentas if c["entrada"]]
-    if usables:
-        return usables
-    return [dict(_CUENTA_POR_DEFECTO_CLI, etiqueta="la sesión por defecto del CLI")]
+    """La sesión local de Codex, única identidad de inferencia del Estudio."""
+    return CLI_CODEX.cuentas()
 
 
 def _asistente_listo():
@@ -6698,7 +6667,7 @@ def _asistente_listo():
         }
         if not sesion.get("conectada"):
             ficha["motivo"] = (sesion.get("error")
-                               or ("todavía no has entrado con tu cuenta de Claude"
+                               or ("todavía no has entrado con tu cuenta de Codex"
                                    if por_defecto else
                                    f"la cuenta «{ficha['etiqueta']}» no tiene sesión"))
         elif (ficha_salud or {}).get("estado") in ("cupo", "sesion", "tiempo", "error"):
@@ -6710,7 +6679,7 @@ def _asistente_listo():
     if buenas:
         return True, "", buenas[0], fichas, sin_probar
     motivo = ("; ".join(f["motivo"] for f in fichas)
-              or "todavía no has entrado con tu cuenta de Claude")
+              or "todavía no has entrado con tu cuenta de Codex")
     return False, motivo, None, fichas, sin_probar
 
 
@@ -6743,7 +6712,7 @@ def _foto_para_asistente(pid, pantalla=None):
         cuentas = _cuentas_cli_para_pantalla()
         if not any(c.get("guardada") for c in cuentas):
             sesion = _sesion_de(_CUENTA_POR_DEFECTO_CLI)
-            lineas.append("cuentas de Claude (CLI): ninguna con sesion hecha en el "
+            lineas.append("cuentas de Codex (CLI): ninguna con sesion hecha en el "
                           "almacen; se usa la sesion por defecto del CLI, que "
                           + (f"esta conectada como {sesion.get('correo') or '?'}"
                              f" ({sesion.get('plan') or 'plan ?'})"
@@ -6752,7 +6721,7 @@ def _foto_para_asistente(pid, pantalla=None):
             sesion = cuenta.get("sesion") or {}
             intento = cuenta.get("intento") or {}
             lineas.append(
-                f"cuenta de Claude '{cuenta['etiqueta'] or cuenta['id']}'"
+                f"cuenta de Codex '{cuenta['etiqueta'] or cuenta['id']}'"
                 f"{' (manda)' if cuenta.get('manda') else ''}: "
                 + (f"con sesion como {sesion.get('correo') or '?'} "
                    f"({sesion.get('plan') or 'plan ?'})"
@@ -6971,8 +6940,7 @@ def preguntar_al_asistente(cid: str, cuerpo: dict = Body(default=None)):
     pid = str(datos.get("proyecto") or "").strip()
     foto = _foto_para_asistente(pid, datos.get("pantalla"))
     try:
-        ficha = charla.preguntar(texto, foto, raiz=RAIZ_ESTUDIO,
-                                 carpetas_extra=(raiz_proyectos(),), pid=pid)
+        ficha = charla.preguntar(texto, foto, raiz=RAIZ_ESTUDIO, pid=pid)
     except modulo.Ocupada as fallo:
         raise ErrorApi(409, str(fallo))
     except modulo.ErrorAsistente as fallo:
@@ -9973,7 +9941,7 @@ def _correr_capturas_agente(avisar, ctx, grupos, paso_id, unidades, ajuste=None)
     de el cada vez que alguien mueve un desplegable.
     """
     ajuste = ajuste or {}
-    recomendado = CLI_CLAUDE.por_defecto_de("capturas_agente")
+    recomendado = CLI_CODEX.por_defecto_de("capturas_agente")
     modelo = ajuste.get("modelo") or recomendado["modelo"]
     esfuerzo = ajuste.get("esfuerzo") or recomendado["esfuerzo"]
     instruccion = INSTRUCCION_CAPTURAS.format(
@@ -9993,7 +9961,7 @@ def _correr_capturas_agente(avisar, ctx, grupos, paso_id, unidades, ajuste=None)
     try:
         # Aqui el agente SI usa herramientas: tiene que mirar los PNG y editar el
         # proyecto. Por eso no se le vetan, a diferencia del guion.
-        texto, sobre = CLI_CLAUDE.ejecutar(
+        texto, sobre = CLI_CODEX.ejecutar(
             instruccion, modelo=modelo, esfuerzo=esfuerzo,
             cwd=ctx.proyecto.raiz, tiempo_max_s=int(ajuste.get("tiempo_max_s") or 0),
             base_tiempo_s=1800, herramientas_vetadas=None,
@@ -10014,7 +9982,7 @@ def _correr_capturas_agente(avisar, ctx, grupos, paso_id, unidades, ajuste=None)
                                  "paso": paso_id,
                                  "tokens_salida": comun_tokens(sobre).get("salida")})
     with COSTE.contexto(ctx.proyecto, paso_id):
-        COSTE.reportar_claude(sobre, operacion="capturas")
+        COSTE.reportar_codex(sobre, operacion="capturas")
     ctx.bitacora.anotar("capturas_agente", paso_id,
                         {"resumen": str(texto or "")[:1200],
                          "modelo": modelo, "esfuerzo": esfuerzo,
@@ -10057,11 +10025,11 @@ def _ajuste_cli(datos, defecto_modelo=None, defecto_esfuerzo=None):
     datos = datos if isinstance(datos, dict) else {}
     crudo = datos.get("ajuste") if isinstance(datos.get("ajuste"), dict) else datos
     try:
-        modelo = CLI_CLAUDE.normalizar_modelo(
-            crudo.get("modelo"), defecto=defecto_modelo or CLI_CLAUDE.MODELO_POR_DEFECTO)
-        esfuerzo = CLI_CLAUDE.normalizar_esfuerzo(
+        modelo = CLI_CODEX.normalizar_modelo(
+            crudo.get("modelo"), defecto=defecto_modelo or CLI_CODEX.MODELO_POR_DEFECTO)
+        esfuerzo = CLI_CODEX.normalizar_esfuerzo(
             crudo.get("esfuerzo"),
-            defecto=defecto_esfuerzo or CLI_CLAUDE.ESFUERZO_POR_DEFECTO)
+            defecto=defecto_esfuerzo or CLI_CODEX.ESFUERZO_POR_DEFECTO)
     except ValueError as fallo:
         raise ErrorApi(400, str(fallo))
     ajuste = {"modelo": modelo, "esfuerzo": esfuerzo}
@@ -10295,7 +10263,7 @@ def main():
         uvicorn.run(app, host=argumentos.host, port=argumentos.puerto,
                     log_level="warning")
     finally:
-        # un `claude auth login` a medias deja un node esperando un codigo por
+        # un inicio de sesión del CLI a medias deja un proceso esperando un código por
         # una tuberia que ya no tiene quien escriba
         if PASOS_MODULOS is not None:
             PASOS_MODULOS.login_cli.olvidar_todos()

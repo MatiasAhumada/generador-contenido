@@ -1,11 +1,11 @@
-"""Como respondio cada cuenta del CLI de Claude la ultima vez que se le hablo.
+"""Como respondio la sesión local de Codex la última vez que se le habló.
 
 POR QUE EXISTE
 --------------
 «Con sesion» no es «funciona». Una cuenta puede estar logueada y tener el cupo
 semanal agotado hasta el jueves, o la sesion caducada, o el CLI colgandose; y
 todo eso la pantalla lo pintaba en verde («con sesion», que es lo unico que
-sabe decir `claude auth status`) hasta que alguien preguntaba algo y se comia
+sabe decir `codex login status`) hasta que alguien preguntaba algo y se comía
 un error de seiscientos caracteres. Aqui se apunta LO ULTIMO QUE PASO con cada
 cuenta, y la pantalla lo ensena al lado de la sesion: en la burbuja del
 asistente, en Configuracion y en la guia de inicio.
@@ -14,7 +14,7 @@ DE DONDE SALE
 -------------
 De dos sitios:
 
-  1. **De cada llamada de verdad.** `cli_claude._una_pasada` es el unico sitio
+  1. **De cada llamada de verdad.** `cli_codex._una_pasada` es el único sitio
      por el que pasa toda llamada al CLI (el guion, el catalogo, los rotulos,
      el asistente...), y al volver anota aqui si fue bien o que fallo. Asi el
      cupo agotado a mitad de una tanda se ve en la burbuja al momento, sin que
@@ -67,7 +67,7 @@ ESTADOS = ("ok", "cupo", "sesion", "tiempo", "error")
 DEFECTO = "__defecto__"
 
 #: Como suena «no hay sesion» en lo que devuelve el CLI. Se casa por trozos y no
-#: por frases enteras, por lo mismo que `cli_claude.limite_de`: el texto exacto
+#: por frases enteras, por lo mismo que `cli_codex.limite_de`: el texto exacto
 #: cambia con cada version del CLI.
 _SESION = ("not logged in", "no est", "log in", "login", "authenticat", "oauth",
            "token expired", "expired", "credential", "unauthorized", "401",
@@ -166,7 +166,7 @@ def de(cuenta):
 def clasificar(fallo):
     """(estado, mensaje) a partir de lo que lanzo el CLI.
 
-    Se mira el TIPO primero (cupo y tiempo tienen clase propia en cli_claude) y
+    Se mira el TIPO primero (cupo y tiempo tienen clase propia en cli_codex) y
     el texto solo para distinguir «no hay sesion» de «otra cosa».
     """
     nombre = type(fallo).__name__
@@ -220,13 +220,13 @@ def probar(cuenta, para="comprobar la cuenta"):
     if simulado():
         return anotar(cuenta, "ok", "simulado", para)
     try:
-        from . import cli_claude                        # noqa: PLC0415
+        from . import cli_codex                        # noqa: PLC0415
     except ImportError:                                 # pasos/ suelto en sys.path
-        import cli_claude                               # noqa: PLC0415
+        import cli_codex                               # noqa: PLC0415
     try:
-        cli_claude._una_pasada(
+        cli_codex._una_pasada(
             INSTRUCCION_PRUEBA, MODELO_PRUEBA, ESFUERZO_PRUEBA, None,
-            TIEMPO_PRUEBA_S, TIEMPO_PRUEBA_S, None, cli_claude.HERRAMIENTAS_VETADAS,
+            TIEMPO_PRUEBA_S, TIEMPO_PRUEBA_S, None, cli_codex.HERRAMIENTAS_VETADAS,
             None, None, None, None, para, cuenta)
     except Exception as fallo:                          # noqa: BLE001
         estado, mensaje = clasificar(fallo)

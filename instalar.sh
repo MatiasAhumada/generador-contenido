@@ -310,10 +310,10 @@ navegador() {
   bien "$("$binario" --version 2>/dev/null | head -1)"
 }
 
-# ---------------------------------------------------- 5. Node y el CLI de Claude
+# ---------------------------------------------------- 5. Node y Codex CLI
 
-node_y_claude() {
-  paso "Node y el CLI de Claude"
+node_y_codex() {
+  paso "Node y Codex CLI"
 
   local mayor=0
   command -v node >/dev/null 2>&1 && mayor="$(node -v | sed 's/^v\([0-9]*\).*/\1/')"
@@ -327,15 +327,13 @@ node_y_claude() {
   command -v node >/dev/null || fallo "Node no se ha instalado."
   bien "node $(node -v)"
 
-  # El guion, los rotulos y el asistente los escribe TU SUSCRIPCION de Claude a
-  # traves de este CLI. No es una clave de API: se entra despues, desde la
-  # pantalla de Configuracion del estudio, sin volver a esta consola.
-  if ! command -v claude >/dev/null 2>&1; then
-    nota "instalando el CLI de Claude..."
-    npm install -g @anthropic-ai/claude-code >/dev/null 2>&1 \
-      || fallo "no se ha podido instalar el CLI de Claude (npm install -g @anthropic-ai/claude-code)."
-  fi
-  bien "claude $(claude --version 2>/dev/null | head -1)"
+  # El guion, los rótulos y el asistente usan Codex CLI con una sesión de
+  # ChatGPT. La sesión del servicio se conecta después con `asvs codex-login`.
+  nota "instalando o actualizando Codex CLI..."
+  npm install -g @openai/codex@latest >/dev/null 2>&1 \
+    || fallo "no se ha podido instalar Codex CLI (npm install -g @openai/codex@latest)."
+  command -v codex >/dev/null 2>&1 || fallo "Codex CLI no aparece en el PATH."
+  bien "Codex CLI $(codex --version 2>/dev/null | head -1)"
 }
 
 # ------------------------------------------------- 6. usuario y carpetas
@@ -353,12 +351,14 @@ usuario_y_carpetas() {
   mkdir -p "$RAIZ"/{app,home,login} \
            "$RAIZ"/datos/{proyectos,secretos,banco/presets} \
            "$RAIZ"/login/datos \
+           "$RAIZ"/home/.codex \
            /root/estudio
 
   # El navegador escribe su perfil en HOME y se muere con «cannot create
   # directory» si no existe o no es suyo. Es un fallo que no menciona HOME.
   chown -R "$USUARIO:$USUARIO" "$RAIZ"
-  chmod 700 "$RAIZ/datos/secretos" "$RAIZ/login/datos" /root/estudio
+  chmod 700 "$RAIZ/datos/secretos" "$RAIZ/login/datos" \
+    "$RAIZ/home/.codex" /root/estudio
   bien "usuario '$USUARIO' y $RAIZ"
 }
 
@@ -761,9 +761,9 @@ despedida() {
   # acabaria escrita en el registro de la instalacion.
   [ -n "$clave" ] && printf '   Contrasena:   %s%s%s\n' "$B" "$clave" "$N" >&3
   printf '\n'
-  printf '   Lo que falta se hace YA DENTRO, sin volver a esta consola: al entrar\n'
-  printf '   sale una guia que pide, una a una, la cuenta de Claude (es un login,\n'
-  printf '   no una clave), la clave de OpenAI y la de Cartesia.\n'
+  printf '   Al entrar, la guía te indicará cómo completar la configuración.\n'
+  printf '   conecta Codex desde el servidor con:  asvs codex-login\n'
+  printf '   y despues añade las claves de OpenAI (imágenes) y Cartesia (voz).\n'
   printf '\n'
   printf '   Si alguna vez se te olvida la contrasena, vuelve aqui y escribe:\n'
   printf '      %sestudio-clave%s\n' "$B" "$N"
@@ -795,7 +795,7 @@ FUENTE_DESPLIEGUE="$RAIZ/app/despliegue"
 
 fuentes
 navegador
-node_y_claude
+node_y_codex
 entorno_python
 el_login
 las_unidades

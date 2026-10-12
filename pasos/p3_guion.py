@@ -1,7 +1,7 @@
 """
 Paso 3: redaccion del guion.
 
-Llama al CLI de Claude en modo headless y le da cuatro cosas: el transcript del
+Llama a Codex CLI en modo no interactivo y le da cuatro cosas: el transcript del
 video de referencia como documentacion, el brief del usuario, el guion anterior
 (si lo hay, para no perder el contexto entre iteraciones) y la instruccion
 concreta de esta pasada.
@@ -103,9 +103,9 @@ import subprocess  # noqa: F401  (las pruebas sustituyen p3_guion.subprocess.Pop
 import time
 
 try:
-    from . import cli_claude, comun, cta, estadisticas, fuentes, marcas_tts
+    from . import cli_codex, comun, cta, estadisticas, fuentes, marcas_tts
 except ImportError:  # ejecutado con la carpeta pasos directamente en sys.path
-    import cli_claude
+    import cli_codex
     import comun
     import cta
     import estadisticas
@@ -121,7 +121,7 @@ PASO = "guion"
 MAX_CARACTERES_ORIGEN = 60000
 
 # Tiempo de referencia de UNA llamada con esfuerzo 'low'. El techo real se deriva
-# de aqui y del esfuerzo elegido (cli_claude.tiempo_max): un techo fijo de 420 s
+# de aqui y del esfuerzo elegido (cli_codex.tiempo_max): un techo fijo de 420 s
 # con esfuerzo 'high' es una trampa, porque garantiza TiempoAgotado y
 # TiempoAgotado no se reintenta a proposito.
 TIEMPO_BASE_S = 420
@@ -133,10 +133,10 @@ UMBRAL_REINTENTO_BASE_S = 120
 PARAMS_POR_DEFECTO = {
     "prompt_general": "",
     "regenerar_desde_cero": False,
-    # El ajuste por defecto de cada fase vive en cli_claude.POR_FASE, elegido
+    # El ajuste por defecto de cada fase vive en cli_codex.POR_FASE, elegido
     # por la complejidad de la tarea y con las fuentes anotadas alli.
-    "modelo": cli_claude.por_defecto_de("guion")["modelo"],
-    "esfuerzo": cli_claude.por_defecto_de("guion")["esfuerzo"],
+    "modelo": cli_codex.por_defecto_de("guion")["modelo"],
+    "esfuerzo": cli_codex.por_defecto_de("guion")["esfuerzo"],
     "tiempo_max_s": 0,      # 0 = automatico segun el esfuerzo
     "reintentos": 1,
     "umbral_reintento_s": 0,  # 0 = automatico segun el esfuerzo
@@ -185,10 +185,10 @@ PARAMS_POR_DEFECTO = {
     **cta.PARAMS_POR_DEFECTO,
 }
 
-# La lista vive en cli_claude para que la UI, el backend y los cuatro sitios que
+# La lista vive en cli_codex para que la UI, el backend y los cuatro sitios que
 # llaman al CLI no tengan cada uno su copia: ya estaban desincronizadas (la
 # interfaz ofrecia tres esfuerzos y el backend aceptaba cinco).
-ESFUERZOS = cli_claude.ESFUERZOS
+ESFUERZOS = cli_codex.ESFUERZOS
 
 # Variables del entorno que le cambian el razonamiento al CLI. --effort ya pisa
 # a CLAUDE_EFFORT (medido), pero MAX_THINKING_TOKENS actua por su cuenta, y el
@@ -237,9 +237,9 @@ def _normalizar(params, estricto=True):
     opciones["emocion_en_voz"] = bool(opciones.get("emocion_en_voz"))
     # Un modelo mal escrito solo se detectaba por returncode != 0, o sea despues
     # de haber pagado el arranque del CLI y la espera entera.
-    opciones["modelo"] = cli_claude.normalizar_modelo(
+    opciones["modelo"] = cli_codex.normalizar_modelo(
         opciones.get("modelo"), estricto=estricto)
-    opciones["esfuerzo"] = cli_claude.normalizar_esfuerzo(
+    opciones["esfuerzo"] = cli_codex.normalizar_esfuerzo(
         opciones.get("esfuerzo"), estricto=estricto)
 
     for clave, minimo in (("reintentos", 0), ("umbral_reintento_s", 0),
@@ -903,13 +903,13 @@ def _instruccion(transcript, metadatos, brief, anterior, opciones, correcciones,
 
 # ------------------------------------------------------------------ CLI
 
-def _localizar_claude():
-    """Ruta del ejecutable del CLI de Claude."""
-    return cli_claude.localizar("el paso de guion")
+def _localizar_codex():
+    """Ruta del ejecutable de Codex CLI."""
+    return cli_codex.localizar("el paso de guion")
 
 
-TiempoAgotado = cli_claude.TiempoAgotado
-LimiteAgotado = cli_claude.LimiteAgotado
+TiempoAgotado = cli_codex.TiempoAgotado
+LimiteAgotado = cli_codex.LimiteAgotado
 
 #: Los fallos que NO se reintentan, y por el mismo motivo los dos: el segundo
 #: intento no puede salir mejor que el primero. Un timeout volveria a vencer y
@@ -921,20 +921,20 @@ SIN_REINTENTO = (TiempoAgotado, LimiteAgotado)
 
 def tiempo_max_de(opciones):
     """Techo de UNA llamada: el que se haya fijado a mano, o el del esfuerzo."""
-    return cli_claude.tiempo_max(opciones["esfuerzo"], base_s=TIEMPO_BASE_S,
+    return cli_codex.tiempo_max(opciones["esfuerzo"], base_s=TIEMPO_BASE_S,
                                  modelo=opciones["modelo"],
                                  pedido_s=opciones.get("tiempo_max_s") or 0)
 
 
-def _llamar_claude(instruccion, opciones, cwd, avance=None):
+def _llamar_codex(instruccion, opciones, cwd, avance=None):
     """Lanza el CLI en headless y devuelve (texto de la respuesta, sobre JSON).
 
-    La orden la arma cli_claude, que es el unico sitio del Estudio que sabe
+    La orden la arma cli_codex, que es el unico sitio del Estudio que sabe
     construirla. Esta funcion sigue existiendo con este nombre y esta firma
     porque el medidor de coste la engancha POR NOMBRE (nucleo/coste.py:724) y
     porque las pruebas sustituyen aqui el CLI por un doble.
     """
-    return cli_claude.ejecutar(
+    return cli_codex.ejecutar(
         instruccion,
         modelo=opciones["modelo"], esfuerzo=opciones["esfuerzo"],
         cwd=cwd, tiempo_max_s=opciones.get("tiempo_max_s") or 0,
@@ -1351,7 +1351,7 @@ def _pedir(instruccion, opciones, trabajo, avisar, tramo, mensaje, prevision,
             f"{mensaje} (intento {intento})")
         avance.arrancar()
         try:
-            texto, sobre = _llamar_claude(instruccion_actual, opciones, trabajo, avance)
+            texto, sobre = _llamar_codex(instruccion_actual, opciones, trabajo, avance)
         except RuntimeError as fallo:
             tardado = avance.parar()
             reintentable = (not isinstance(fallo, SIN_REINTENTO)
@@ -1428,7 +1428,7 @@ def umbral_reintento_de(opciones):
     if pedido > 0:
         return int(pedido)
     return int(round(UMBRAL_REINTENTO_BASE_S
-                     * cli_claude.factor(opciones["modelo"], opciones["esfuerzo"])))
+                     * cli_codex.factor(opciones["modelo"], opciones["esfuerzo"])))
 
 
 def _puede_reintentar(intento, tardado, opciones):
@@ -1458,7 +1458,7 @@ def ejecutar(proyecto, params, avisar):
     ajuste = {"modelo": seguro["modelo"], "esfuerzo": seguro["esfuerzo"]}
     try:
         return _redactar(proyecto, params, avisar)
-    except cli_claude.TiempoAgotado:
+    except cli_codex.TiempoAgotado:
         estadisticas.anotar(PASO, time.time() - arranque, ok=False, ajuste=ajuste,
                             proyecto=getattr(proyecto, "id", None),
                             resultado="tiempo agotado")
@@ -1471,7 +1471,7 @@ def ejecutar(proyecto, params, avisar):
 
 
 def _redactar(proyecto, params, avisar):
-    """Redacta el guion con el CLI de Claude a partir del material y el brief."""
+    """Redacta el guion con Codex a partir del material y el brief."""
     arranque = time.time()
     opciones = _normalizar(params)
     trabajo = comun.preparar_trabajo(proyecto, PASO)

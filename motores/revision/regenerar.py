@@ -7,7 +7,7 @@ Dos caminos, y el panel elige:
             generar. Rapido y barato, sirve para el 90% de las correcciones
             ("mas oscuro", "quita el barco", "menos gente").
 
-  agente    se lanza el CLI de Claude con Sonnet sobre la carpeta del proyecto.
+  agente    se lanza Codex CLI sobre la carpeta del proyecto.
             Puede leer el plan, mirar la imagen anterior, decidir que hay que
             cambiar y tocar mas de una cosa. Para feedback que no es una
             correccion de prompt sino un problema de planteamiento.
@@ -18,23 +18,16 @@ derecha se convierte en "presta atencion a la zona superior derecha".
 """
 import json
 import os
-import subprocess
 import sys
 
 #: La carpeta de motores es la que contiene ESTE fichero. Antes era una ruta
 #: fija a una maquina concreta.
 MOTORES = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(MOTORES, "imagen_openai"))
+sys.path.insert(0, os.path.join(MOTORES, "pasos"))
 
 import imagen as motor  # noqa: E402
-
-# Sin ventana negra. Estos procesos (yt-dlp, ffmpeg, whisperx) son de consola, y
-# lanzados desde el servicio del Estudio abren una ventana encima de todo por
-# cada llamada. Trabajando por escritorio remoto es la pantalla tapandose sola.
-SIN_VENTANA = {}
-if os.name == "nt":
-    SIN_VENTANA = {"creationflags": getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)}
-
+import cli_codex  # noqa: E402
 
 ZONAS = [
     ("superior izquierda", 0.0, 0.33, 0.0, 0.33),
@@ -172,7 +165,7 @@ linea de lo que cambiaste.
 
 def regenerar_agente(proyecto, escena_id, feedback, trazos, generales="",
                      carpeta="storyboard", modelo="sonnet", timeout=900):
-    """Lanza el CLI de Claude para que decida y aplique la correccion."""
+    """Lanza Codex para que inspeccione la imagen y aplique la corrección."""
     marcas = describir_trazos(trazos)
     instruccion = INSTRUCCION_AGENTE.format(
         escena=escena_id,
@@ -183,27 +176,21 @@ def regenerar_agente(proyecto, escena_id, feedback, trazos, generales="",
         proyecto=proyecto,
     )
 
-    # El esfuerzo va explicito y los MCP del usuario se quedan fuera: sin
-    # --effort el CLI razona durante minutos antes de tocar nada (371 s frente a
-    # 70 s medidos con la misma entrada), y los servidores MCP no pintan nada en
-    # una correccion de escena. El entorno viaja sin las variables de
-    # razonamiento para que tarde lo mismo se lance desde donde se lance.
-    entorno = {c: v for c, v in os.environ.items()
-               if c not in ("CLAUDE_EFFORT", "MAX_THINKING_TOKENS")}
-    proceso = subprocess.run(
-        ["claude", "-p", instruccion,
-         "--model", modelo,
-         "--effort", "low",
-         "--strict-mcp-config",
-         "--permission-mode", "acceptEdits",
-         "--add-dir", MOTORES],
-        cwd=proyecto, capture_output=True, text=True,
-        encoding="utf-8", errors="replace", timeout=timeout,
-        shell=True, env=entorno, **SIN_VENTANA)
-    salida = (proceso.stdout or "").strip()
-    return {"ok": proceso.returncode == 0, "modo": "agente", "escena": escena_id,
-            "modelo": modelo, "salida": salida[-2000:],
-            "error": (proceso.stderr or "")[-800:] if proceso.returncode else ""}
+    imagen = os.path.join(proyecto, "assets", carpeta, f"{escena_id}.png")
+    try:
+        salida, sobre = cli_codex.ejecutar(
+            instruccion, modelo=modelo, esfuerzo="low", cwd=proyecto,
+            tiempo_max_s=timeout, base_tiempo_s=timeout,
+            herramientas_vetadas=None, permisos="acceptEdits",
+            extra=["--add-dir", MOTORES, "--image", imagen],
+            para=f"corregir la escena {escena_id}")
+        fallo = ""
+    except Exception as error:  # noqa: BLE001
+        salida, sobre, fallo = "", {}, str(error)
+    ajuste = sobre.get("_ajuste") or {}
+    return {"ok": not fallo, "modo": "agente", "escena": escena_id,
+            "modelo": ajuste.get("modelo") or modelo, "salida": salida[-2000:],
+            "error": fallo[-800:] if fallo else ""}
 
 
 if __name__ == "__main__":

@@ -16,8 +16,9 @@ Tres proveedores y tres unidades distintas:
                 La tarifa por caracter depende del plan contratado y NO se sabe:
                 mientras siga vacia en tarifas.json el evento se anota con los
                 caracteres y el importe marcado como 'sin tarifa'.
-    claude_cli  SOLO tokens. Va contra la suscripcion, no contra un contador con
+    codex_plan  SOLO tokens. Va contra la suscripcion, no contra un contador con
                 precio por llamada, asi que no lleva dolares y no suma al total.
+    claude_cli  eventos historicos conservados de versiones anteriores.
 
 Uso:
 
@@ -63,9 +64,10 @@ RUTA_GLOBAL = (os.environ.get("ESTUDIO_COSTE_GLOBAL")
                or os.path.join(RAIZ_ESTUDIO, "coste_global.jsonl"))
 NOMBRE_COSTE = "coste.jsonl"
 
-PROVEEDORES = ("openai", "tts", "claude_cli")
-SIN_DOLARES = ("claude_cli",)            # se miden en tokens y no suman al total
-ETIQUETAS = {"openai": "OpenAI", "tts": "TTS", "claude_cli": "Claude"}
+PROVEEDORES = ("openai", "tts", "codex_plan", "claude_cli")
+SIN_DOLARES = ("codex_plan", "claude_cli")
+ETIQUETAS = {"openai": "OpenAI", "tts": "TTS", "codex_plan": "Codex (plan)",
+             "claude_cli": "Claude (histórico)"}
 
 AVISO_PRESUPUESTO = 0.8                  # fraccion a partir de la cual se avisa
 
@@ -247,7 +249,7 @@ class Medidor:
                cantidad=None, usd=None, usd_estimado=False, detalle=None):
         """Anota lo consumido por una llamada. Devuelve el registro escrito.
 
-        usd=None significa 'no hay importe': en claude_cli porque no lo lleva
+        usd=None significa 'no hay importe': en codex_plan porque no lo lleva
         (va contra la suscripcion) y en el resto porque falta la tarifa. Los dos
         casos se distinguen con 'sin_tarifa', y ninguno inventa un numero.
         """
@@ -414,7 +416,7 @@ def corto(numero):
 def cabecera(proveedores, total_usd):
     """La linea que va junto al selector de proyecto, ya formateada.
 
-    Claude sale sin importe y no entra en el TOTAL: mostrar un dolar inventado
+    Codex sale sin importe y no entra en el TOTAL: mostrar un dolar inventado
     ahi seria peor que no mostrar nada.
     """
     def importe(ficha):
@@ -424,11 +426,11 @@ def cabecera(proveedores, total_usd):
 
     abierto = proveedores.get("openai") or _vacio("openai")
     voz = proveedores.get("tts") or _vacio("tts")
-    cli = proveedores.get("claude_cli") or _vacio("claude_cli")
+    cli = proveedores.get("codex_plan") or _vacio("codex_plan")
     return "     ".join([
         f"OpenAI  {importe(abierto)} · {corto(abierto['tokens']['total'])} tok",
         f"TTS  {importe(voz)} · {corto(voz['cantidad']['caracteres'])} car",
-        f"Claude  {corto(cli['tokens']['total'])} tok",
+        f"Codex  {corto(cli['tokens']['total'])} tok",
         f"TOTAL  ${total_usd:.2f}",
     ])
 
@@ -617,8 +619,8 @@ def reportar_tts(caracteres, operacion="sintesis", unidad=None, tokens=None,
                    usd_estimado=True, detalle=detalle)
 
 
-def reportar_claude(sobre, operacion="cli", unidad=None, detalle=None):
-    """Anota una llamada al CLI de Claude leyendo su bloque 'usage'.
+def reportar_codex(sobre, operacion="cli", unidad=None, detalle=None):
+    """Anota el uso del plan de Codex a partir de la respuesta del CLI.
 
     Entrada, salida y cache van por separado porque la cache cambia mucho el
     recuento y mezclarlas oculta de donde viene el gasto.
@@ -626,14 +628,15 @@ def reportar_claude(sobre, operacion="cli", unidad=None, detalle=None):
     sobre = sobre if isinstance(sobre, dict) else {}
     usage = sobre.get("usage") if isinstance(sobre.get("usage"), dict) else {}
     cache = (int(usage.get("cache_creation_input_tokens") or 0)
-             + int(usage.get("cache_read_input_tokens") or 0))
+             + int(usage.get("cache_read_input_tokens") or 0)
+             + int(usage.get("cached_input_tokens") or 0))
     ficha = {}
     if sobre.get("model"):
         ficha["modelo"] = sobre["model"]
     if sobre.get("duration_ms") is not None:
         ficha["segundos"] = round(float(sobre["duration_ms"]) / 1000.0, 1)
     # El sobre del CLI no dice con que esfuerzo se le hablo, y el esfuerzo es la
-    # variable que mas mueve el tiempo: lo estampa pasos/cli_claude al volver.
+    # variable que mas mueve el tiempo: lo estampa pasos/cli_codex al volver.
     ajuste = sobre.get("_ajuste")
     if isinstance(ajuste, dict):
         ficha.setdefault("modelo", ajuste.get("modelo"))
@@ -645,11 +648,16 @@ def reportar_claude(sobre, operacion="cli", unidad=None, detalle=None):
     if sobre.get("total_cost_usd") is not None:
         ficha["coste_suscripcion_usd"] = round(float(sobre["total_cost_usd"]), 4)
     ficha.update(detalle or {})
-    return _anotar("claude_cli", operacion, unidad=unidad,
+    return _anotar("codex_plan", operacion, unidad=unidad,
                    tokens={"entrada": usage.get("input_tokens"),
                            "salida": usage.get("output_tokens"),
                            "cache": cache},
                    detalle=ficha)
+
+
+def reportar_claude(sobre, operacion="cli", unidad=None, detalle=None):
+    """Compatibilidad para integraciones antiguas; las nuevas llamadas usan Codex."""
+    return reportar_codex(sobre, operacion=operacion, unidad=unidad, detalle=detalle)
 
 
 # ----------------------------------------------------------- instrumentacion
@@ -734,11 +742,11 @@ def _medir_toma_por_contexto(original):
     return medido
 
 
-def _medir_claude(operacion):
+def _medir_codex(operacion):
     def fabrica(original):
         def medido(*args, **kwargs):
             texto, sobre = original(*args, **kwargs)
-            reportar_claude(sobre, operacion=operacion)
+            reportar_codex(sobre, operacion=operacion)
             return texto, sobre
         return medido
     return fabrica
@@ -825,28 +833,28 @@ def instrumentar(pasos=None):
                   "voz.previsualizar")
     guion = getattr(pasos, "p3_guion", None)
     if guion is not None:
-        _envolver(guion, "_llamar_claude", _medir_claude("guion"), informe,
-                  "guion.claude")
+        _envolver(guion, "_llamar_codex", _medir_codex("guion"), informe,
+                  "guion.codex")
     revision = getattr(pasos, "p5_revision_audio", None)
     if revision is not None:
-        _envolver(revision, "_llamar_claude", _medir_claude("revision_audio"),
-                  informe, "revision_audio.claude")
+        _envolver(revision, "_llamar_codex", _medir_codex("revision_audio"),
+                  informe, "revision_audio.codex")
     estilo = getattr(pasos, "estilo", None)
     if estilo is not None:
-        _envolver(estilo, "_llamar_claude", _medir_claude("guia_estilo"),
-                  informe, "guia_estilo.claude")
+        _envolver(estilo, "_llamar_codex", _medir_codex("guia_estilo"),
+                  informe, "guia_estilo.codex")
     tono = getattr(pasos, "tono", None)
     if tono is not None:
-        _envolver(tono, "_llamar_claude", _medir_claude("tono"),
-                  informe, "tono.claude")
+        _envolver(tono, "_llamar_codex", _medir_codex("tono"),
+                  informe, "tono.codex")
     catalogo = getattr(pasos, "catalogo_visual", None)
     if catalogo is not None:
-        _envolver(catalogo, "_llamar_claude", _medir_claude("catalogo_visual"),
-                  informe, "catalogo_visual.claude")
+        _envolver(catalogo, "_llamar_codex", _medir_codex("catalogo_visual"),
+                  informe, "catalogo_visual.codex")
     conservar = getattr(pasos, "conservar", None)
     if conservar is not None:
-        _envolver(conservar, "_llamar_claude", _medir_claude("conservacion"),
-                  informe, "conservacion.claude")
+        _envolver(conservar, "_llamar_codex", _medir_codex("conservacion"),
+                  informe, "conservacion.codex")
     assets = getattr(pasos, "p6_assets", None)
     if assets is not None:
         _envolver(assets, "_producir_imagen", _medir_produccion_imagen, informe,

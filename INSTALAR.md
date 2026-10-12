@@ -11,7 +11,7 @@ de servidores: se pega una línea y se espera.
 | Qué | Para qué | Cuánto cuesta |
 |---|---|---|
 | **Un VPS con Ubuntu 24.04** | la máquina donde vive el estudio | desde ~7 €/mes |
-| **Una cuenta de Claude** (Pro o Max) | escribe el guion y los rótulos | tu suscripción, sin coste extra por vídeo |
+| **Codex CLI con tu cuenta de ChatGPT** | escribe el guion, analiza imágenes y alimenta el asistente | uso incluido de Codex, sujeto a sus límites |
 | **Una clave de OpenAI** | dibuja las imágenes | se paga por imagen (abajo) |
 | **Una clave de Cartesia** | pone la voz | plan gratuito para empezar |
 | Jamendo y FreeSound *(opcional)* | música y efectos | gratis |
@@ -21,10 +21,9 @@ núcleos el montaje del vídeo va casi el doble de rápido (medido: 7 minutos
 frente a 11 para un vídeo de dos minutos y medio). Y espacio: un vídeo largo con
 todas sus versiones puede ocupar decenas de gigas.
 
-**Lo que cuesta generar**, para que no haya sorpresas: un vídeo de cuatro
-minutos son unas 126 imágenes, y en calidad baja salen por **unos 4,4 $**. El
-estudio enseña el coste en pantalla antes y durante, y la calidad se elige en
-Configuración.
+**El coste de generación depende** de la duración, el número de planos, las
+referencias que acompaña cada imagen y la calidad elegida. El estudio estima el
+total antes de empezar y permite elegir la calidad en Configuración.
 
 > **Tiene que ser Ubuntu 24.04.** Con 22.04 la instalación no puede terminar
 > (su Python es demasiado viejo), y el instalador te lo dice nada más empezar.
@@ -76,19 +75,24 @@ https://srv1234567.hstgr.cloud
 
 ---
 
-## Lo que viene después (dentro, sin tocar la consola nunca más)
+## Lo que viene después
 
 La primera vez que entras sale una **guía de inicio** que te pide las cosas de
 una en una y con el enlace de dónde se consigue cada una:
 
-1. **Entrar con Claude.** No es una clave: es un inicio de sesión. Te dará un
-   enlace, lo abres, apruebas, y pegas el código que te devuelve.
+1. **Conectar Codex.** En el servidor ejecuta `asvs codex-login` y completa el
+   acceso de ChatGPT con la verificación del dispositivo que indica Codex.
 2. **La clave de OpenAI**, para las imágenes.
 3. **La clave de Cartesia**, para la voz.
 4. Jamendo y FreeSound si quieres música y efectos.
 
-Todo eso se hace desde la pantalla. Si te la saltas, vuelve a salir desde
-**Configuración** (el engranaje de arriba a la derecha).
+Las claves se guardan desde la pantalla. Si te saltas la guía, vuelve a salir
+desde **Configuración** (el engranaje de arriba a la derecha). Codex se conecta
+desde la terminal del servidor con `asvs codex-login`.
+
+Codex usa el cupo de tu plan de ChatGPT. Las imágenes llaman a OpenAI API y la
+voz a Cartesia: son servicios separados y sus costes no están cubiertos por la
+suscripción de Codex.
 
 ---
 

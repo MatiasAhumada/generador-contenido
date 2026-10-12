@@ -70,12 +70,12 @@ def main():
     os.makedirs(os.environ["ESTUDIO_SECRETOS"], exist_ok=True)
 
     import claves
-    import cli_claude
+    import cli_codex
     import login_cli
     login_cli.CARPETA_CUENTAS = os.path.join(os.environ["ESTUDIO_SECRETOS"], "cli")
 
     try:
-        cli_claude.localizar("la prueba del acceso")
+        cli_codex.localizar("la prueba del acceso")
     except RuntimeError as fallo:
         print(f"\nSIN CLI: {fallo}")
         print("La suite no puede correr sin el CLI instalado.")
@@ -171,7 +171,7 @@ def main():
         usables = claves.cuentas_cli()
         igual([c["etiqueta"] for c in usables], ["la buena"],
               "en cuanto una tiene sesion, entra ella sola")
-        igual([c["etiqueta"] for c in cli_claude.cuentas()], ["la buena"],
+        igual([c["etiqueta"] for c in cli_codex.cuentas()], ["la buena"],
               "y es la que ve quien va a llamar al CLI")
 
         seccion("8] `auth status --json` sigue contestando lo que decimos")

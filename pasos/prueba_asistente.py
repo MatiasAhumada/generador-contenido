@@ -6,7 +6,7 @@ puede romper en silencio:
   - que el prompt de sistema quepa en una linea y no lleve acentos (va como
     argumento de claude.cmd, ver la cabecera del modulo);
   - que `secretos/`, el .env y los claves.json queden VETADOS para Read, en la
-    orden de verdad que se le pasa a cli_claude;
+    orden de verdad que se le pasa a cli_codex;
   - que el primer turno lleve la documentacion y los siguientes reanuden la
     sesion (`--resume`), y que al no poder reanudar se vuelva a empezar con la
     conversacion pegada en vez de perderla;
@@ -27,7 +27,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import asistente  # noqa: E402
-import cli_claude  # noqa: E402
+import cli_codex  # noqa: E402
 
 FALLOS = []
 
@@ -119,7 +119,7 @@ def prueba_prompt():
 
 
 def prueba_orden():
-    seccion("2] lo que de verdad se le pasa a cli_claude")
+    seccion("2] lo que de verdad se le pasa a cli_codex")
     recibido = {}
 
     def falso(instruccion, **kw):
@@ -127,8 +127,8 @@ def prueba_orden():
         recibido["instruccion"] = instruccion
         return "hola", {"session_id": "s1", "usage": {}}
 
-    original = cli_claude.ejecutar
-    cli_claude.ejecutar = falso
+    original = cli_codex.ejecutar
+    cli_codex.ejecutar = falso
     try:
         carpeta = tempfile.mkdtemp(prefix="asist_")
         try:
@@ -138,7 +138,7 @@ def prueba_orden():
         finally:
             shutil.rmtree(carpeta, ignore_errors=True)
     finally:
-        cli_claude.ejecutar = original
+        cli_codex.ejecutar = original
     igual(texto, "hola", "devuelve lo que contesta el CLI")
     permitidas = tuple(recibido["herramientas_permitidas"])
     igual(permitidas[:3], ("Read", "Grep", "Glob"), "puede LEER: Read, Grep y Glob")
@@ -148,11 +148,11 @@ def prueba_orden():
               "sin ESTUDIO_API no se carga ningun servidor MCP")
     primera = dict(recibido)
     os.environ["ESTUDIO_API"] = "http://127.0.0.1:65000"
-    cli_claude.ejecutar = falso
+    cli_codex.ejecutar = falso
     try:
         asistente.ejecutar_cli("pregunta", raiz="C:/estudio", proyecto="p7")
     finally:
-        cli_claude.ejecutar = original
+        cli_codex.ejecutar = original
         os.environ.pop("ESTUDIO_API", None)
     extra_mcp = recibido["extra"]
     # lo que sigue comprueba la PRIMERA llamada (la que reanudaba)
@@ -181,7 +181,7 @@ def prueba_orden():
     comprobar(recibido["tiempo_max_s"] == asistente.TIEMPO_MAX_S, "con su techo de tiempo")
 
     # el orden completo tiene que poder construirse con esas listas
-    orden = cli_claude.construir_orden(
+    orden = cli_codex.construir_orden(
         asistente.MODELO, asistente.ESFUERZO, sistema=asistente.sistema(),
         herramientas_vetadas=tuple(asistente.HERRAMIENTAS_VETADAS)
         + tuple(asistente.vetos_de_lectura()),
@@ -259,8 +259,8 @@ def prueba_charla():
     igual(ficha["turnos"][5]["texto"], "tercera", "solo la respuesta")
 
     # un cupo agotado o un plazo vencido NO se reintentan
-    for fallo, nombre in ((cli_claude.LimiteAgotado("se acabo el cupo"), "cupo agotado"),
-                          (cli_claude.TiempoAgotado("vencio"), "plazo vencido")):
+    for fallo, nombre in ((cli_codex.LimiteAgotado("se acabo el cupo"), "cupo agotado"),
+                          (cli_codex.TiempoAgotado("vencio"), "plazo vencido")):
         doble = Doble([fallo, "no deberia"])
         charla.preguntar("otra", "FOTO", raiz="C:/estudio", ejecutar=doble)
         ficha = esperar(charla)

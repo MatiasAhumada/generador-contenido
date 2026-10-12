@@ -46,7 +46,7 @@ sys.path.insert(0, os.path.join(RAIZ, "pasos"))
 
 import cartelas  # noqa: E402
 import catalogo_visual  # noqa: E402
-import cli_claude  # noqa: E402
+import cli_codex  # noqa: E402
 import comun  # noqa: E402
 import direccion  # noqa: E402
 import encuadres  # noqa: E402
@@ -1601,11 +1601,11 @@ def prueba_guia_de_estilo():
     """
     titulo("guia de estilo: la escribe un escalon ALTO, nunca el barato")
     # Desde el 21-08-2026 el canal corre TODO en opus con esfuerzo muy alto
-    # (cli_claude.MODELO_POR_DEFECTO), asi que esta fase ya no se distingue por
+    # (cli_codex.MODELO_POR_DEFECTO), asi que esta fase ya no se distingue por
     # tener ajuste propio. Lo que sigue importando --y es lo que costo una ronda
     # de imagenes-- es que NUNCA caiga al escalon barato, y que su recomendacion
     # razonada siga escrita para el dia que se vuelva al reparto por fase.
-    por_fase = cli_claude.por_defecto_de("guia_estilo")
+    por_fase = cli_codex.por_defecto_de("guia_estilo")
     igual(por_fase["modelo"], "opus", "la escribe opus")
     ok(por_fase["esfuerzo"] in ("high", "xhigh", "max"),
        f"con esfuerzo alto: {por_fase['esfuerzo']}")
@@ -1617,14 +1617,14 @@ def prueba_guia_de_estilo():
     # EL DEFECTO ES UN SUELO, NO UN TECHO: una fase que pide mas no se rebaja.
     # Se prueba con una fase de mentira porque hoy ninguna real pide 'max', y la
     # regla tiene que seguir protegida el dia que alguna vuelva a pedirlo.
-    cli_claude.POR_FASE["_prueba_max"] = {
+    cli_codex.POR_FASE["_prueba_max"] = {
         "modelo": "opus", "esfuerzo": "max",
         "porque": "fase de prueba: comprueba que el defecto no rebaja a nadie"}
     try:
-        igual(cli_claude.por_defecto_de("_prueba_max")["esfuerzo"], "max",
+        igual(cli_codex.por_defecto_de("_prueba_max")["esfuerzo"], "max",
               "una fase que pide MAX sigue en max: subir el defecto no baja a nadie")
     finally:
-        cli_claude.POR_FASE.pop("_prueba_max", None)
+        cli_codex.POR_FASE.pop("_prueba_max", None)
 
     titulo("guia de estilo: se pregunta por la cara, sea cual sea el estilo")
     plantilla = estilo.INSTRUCCION_GUIA

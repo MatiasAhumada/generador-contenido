@@ -33,9 +33,9 @@ import os
 import time
 
 try:
-    from . import cli_claude, comun, estadisticas
+    from . import cli_codex, comun, estadisticas
 except ImportError:  # ejecutado con la carpeta pasos directamente en sys.path
-    import cli_claude
+    import cli_codex
     import comun
     import estadisticas
 
@@ -46,8 +46,8 @@ TIEMPO_BASE_S = 240
 # sin ajuste caia en sonnet/low: el mismo agujero que tuvo la guia de estilo
 # durante meses, y por el mismo motivo -- el resultado siempre es un texto
 # plausible, asi que nadie se entera de que se coló por el escalon barato.
-MODELO_POR_DEFECTO = cli_claude.por_defecto_de(PASO)["modelo"]
-ESFUERZO_POR_DEFECTO = cli_claude.por_defecto_de(PASO)["esfuerzo"]
+MODELO_POR_DEFECTO = cli_codex.por_defecto_de(PASO)["modelo"]
+ESFUERZO_POR_DEFECTO = cli_codex.por_defecto_de(PASO)["esfuerzo"]
 
 
 SISTEMA = ("Responde exclusivamente con el objeto JSON pedido, sin texto "
@@ -151,9 +151,9 @@ def nombre_de_idioma(codigo):
 PISTAS = "es.*,en.*,pt.*,fr.*,it.*,de.*"
 
 
-def _llamar_claude(instruccion, modelo, esfuerzo, cwd, avance=None):
+def _llamar_codex(instruccion, modelo, esfuerzo, cwd, avance=None):
     """Se llama asi para que el medidor de coste pueda engancharla por nombre."""
-    return cli_claude.ejecutar(
+    return cli_codex.ejecutar(
         instruccion, modelo=modelo, esfuerzo=esfuerzo, cwd=cwd,
         tiempo_max_s=0, base_tiempo_s=TIEMPO_BASE_S,
         sistema=SISTEMA, permisos="acceptEdits", avance=avance,
@@ -387,9 +387,9 @@ def desde_descripcion(proyecto, descripcion, modelo=None, esfuerzo=None,
         raise ValueError("describe el tono con algo mas de detalle: con dos "
                          "palabras las instrucciones se las inventa enteras")
 
-    modelo = cli_claude.normalizar_modelo(modelo, estricto=False,
+    modelo = cli_codex.normalizar_modelo(modelo, estricto=False,
                                           defecto=MODELO_POR_DEFECTO)
-    esfuerzo = cli_claude.normalizar_esfuerzo(esfuerzo, estricto=False,
+    esfuerzo = cli_codex.normalizar_esfuerzo(esfuerzo, estricto=False,
                                               defecto=ESFUERZO_POR_DEFECTO)
     ajuste = {"modelo": modelo, "esfuerzo": esfuerzo}
 
@@ -412,7 +412,7 @@ def desde_descripcion(proyecto, descripcion, modelo=None, esfuerzo=None,
 
     arranque = time.time()
     try:
-        texto_cli, sobre = _llamar_claude(instruccion, modelo, esfuerzo,
+        texto_cli, sobre = _llamar_codex(instruccion, modelo, esfuerzo,
                                           trabajo, avance)
     except BaseException:
         if avance is not None:

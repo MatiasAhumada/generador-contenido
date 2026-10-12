@@ -5,20 +5,20 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 # claves va la PRIMERA y solo depende de la biblioteca estandar: la lee
-# cli_claude para saber con que cuenta hablar, y tiene que poder cargarse
+# cli_codex para saber con que cuenta hablar, y tiene que poder cargarse
 # aunque un motor pesado rompa el resto del paquete.
 from . import claves  # noqa: E402,F401
-from . import cli_claude, comun, estadisticas  # noqa: E402,F401
+from . import cli_codex, comun, estadisticas  # noqa: E402,F401
 # login_cli (entrar con una cuenta del CLI desde la pantalla) va justo
-# detras: solo depende de cli_claude, y la pantalla de configuracion lo
+# detras: solo depende de cli_codex, y la pantalla de configuracion lo
 # busca por `PASOS_MODULOS.login_cli`.
 from . import login_cli  # noqa: E402,F401
-# asistente (el chat de la burbuja) solo depende de cli_claude: la pantalla lo
+# asistente (el chat de la burbuja) solo depende de cli_codex: la pantalla lo
 # busca por `PASOS_MODULOS.asistente` y tiene que poder contestar que no hay
 # sesion aunque un motor pesado rompa el resto del paquete.
 from . import asistente  # noqa: E402,F401
 # salud_cli (como respondio cada cuenta la ultima vez) solo usa la biblioteca
-# estandar; lo lee la pantalla de claves y lo escribe cli_claude en cada llamada.
+# estandar; lo lee la pantalla de claves y lo escribe cli_codex en cada llamada.
 from . import salud_cli  # noqa: E402,F401
 # comprobar_claves (cada clave contra su servicio) y mcp_estudio (las
 # herramientas del asistente) van detras: solo dependen de lo de arriba.
@@ -87,7 +87,7 @@ def modulo_de(paso_id):
 
 
 __all__ = ["catalogo_visual", "conservar", "repaso",
-           "cartelas", "claves", "cli_claude", "comun", "direccion",
+           "cartelas", "claves", "cli_codex", "comun", "direccion",
            "enrutar_estilo", "redactor",
            "login_cli", "asistente", "salud_cli", "comprobar_claves", "mcp_estudio",
            "encuadres", "estadisticas", "estilo",

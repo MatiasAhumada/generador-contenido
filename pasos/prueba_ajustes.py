@@ -29,8 +29,12 @@ os.environ.setdefault("ESTUDIO_SECRETOS", tempfile.mkdtemp(prefix="secretos_prue
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-import cli_claude
+import cli_codex
 import estadisticas
+
+# Las pruebas sustituyen el proceso de Codex por dobles y no dependen de una
+# sesión ChatGPT configurada en la máquina.
+cli_codex.validar_sesion_chatgpt = lambda *a, **k: None
 
 FALLOS = []
 
@@ -68,57 +72,57 @@ def seccion(titulo):
 def prueba_validacion():
     seccion("1] un ajuste imposible se rechaza antes de lanzar el CLI")
 
-    igual(cli_claude.normalizar_modelo("sonnet"), "sonnet", "acepta un alias")
-    igual(cli_claude.normalizar_modelo("  OPUS  "), "opus",
+    igual(cli_codex.normalizar_modelo("sonnet"), "sonnet", "acepta un alias")
+    igual(cli_codex.normalizar_modelo("  OPUS  "), "opus",
           "normaliza espacios y mayusculas")
-    igual(cli_claude.normalizar_modelo("claude-opus-5"), "claude-opus-5",
+    igual(cli_codex.normalizar_modelo("claude-opus-5"), "claude-opus-5",
           "acepta un id completo, porque el catalogo cambia mas que el codigo")
-    falla(lambda: cli_claude.normalizar_modelo("sonet"), "desconocido",
+    falla(lambda: cli_codex.normalizar_modelo("sonet"), "desconocido",
           "rechaza un modelo mal escrito")
-    falla(lambda: cli_claude.normalizar_esfuerzo("altisimo"), "tiene que ser",
+    falla(lambda: cli_codex.normalizar_esfuerzo("altisimo"), "tiene que ser",
           "rechaza un esfuerzo que no existe")
-    igual(cli_claude.normalizar_modelo("sonet", estricto=False),
-          cli_claude.MODELO_POR_DEFECTO,
+    igual(cli_codex.normalizar_modelo("sonet", estricto=False),
+          cli_codex.MODELO_POR_DEFECTO,
           "sin estricto cae al valor por defecto en vez de reventar")
 
-    igual(cli_claude.normalizar_esfuerzo(""), cli_claude.ESFUERZO_POR_DEFECTO,
+    igual(cli_codex.normalizar_esfuerzo(""), cli_codex.ESFUERZO_POR_DEFECTO,
           "vacio significa el valor por defecto, no un error")
-    igual((cli_claude.MODELO_POR_DEFECTO, cli_claude.ESFUERZO_POR_DEFECTO),
+    igual((cli_codex.MODELO_POR_DEFECTO, cli_codex.ESFUERZO_POR_DEFECTO),
           ("opus", "xhigh"),
           "y el defecto del canal es opus con esfuerzo muy alto (21-08-2026)")
 
-    catalogo = cli_claude.catalogo()
+    catalogo = cli_codex.catalogo()
     comprobar(len(catalogo["modelos"]) >= 3 and len(catalogo["esfuerzos"]) == 5,
               f"el catalogo publica {len(catalogo['modelos'])} modelos y "
               f"{len(catalogo['esfuerzos'])} esfuerzos")
     comprobar(all(e.get("nota") for e in catalogo["esfuerzos"]),
               "cada esfuerzo lleva su nota, para que elegir no sea a ciegas")
     igual(sorted(e["id"] for e in catalogo["esfuerzos"]),
-          sorted(cli_claude.ESFUERZOS),
+          sorted(cli_codex.ESFUERZOS),
           "el catalogo y la lista de validacion son la MISMA lista")
 
 
 def prueba_tiempo():
     seccion("2] el plazo escala con el esfuerzo")
 
-    plazos = [cli_claude.tiempo_max(e, base_s=420) for e in cli_claude.ESFUERZOS]
+    plazos = [cli_codex.tiempo_max(e, base_s=420) for e in cli_codex.ESFUERZOS]
     comprobar(plazos == sorted(plazos) and len(set(plazos)) > 1,
-              f"sube con el esfuerzo: {dict(zip(cli_claude.ESFUERZOS, plazos))}")
+              f"sube con el esfuerzo: {dict(zip(cli_codex.ESFUERZOS, plazos))}")
     # El PLAZO se deriva del modelo Y del esfuerzo, y `base_s` esta calibrado
     # sobre sonnet/low: por eso hay que nombrar el modelo para fijar la
     # referencia. Sin nombrarlo manda el defecto del canal, que desde el
     # 21-08-2026 es opus -- y entonces hasta una llamada de esfuerzo bajo tiene
     # mas plazo, que es lo correcto: tarda mas.
-    igual(cli_claude.tiempo_max("low", base_s=420, modelo="sonnet"), 420,
+    igual(cli_codex.tiempo_max("low", base_s=420, modelo="sonnet"), 420,
           "con sonnet y esfuerzo bajo se queda en el plazo de siempre")
-    comprobar(cli_claude.tiempo_max("low", base_s=420) > 420,
+    comprobar(cli_codex.tiempo_max("low", base_s=420) > 420,
               "y sin nombrar modelo manda el defecto del canal, que da mas plazo")
-    comprobar(cli_claude.tiempo_max("high", base_s=420) > 420,
+    comprobar(cli_codex.tiempo_max("high", base_s=420) > 420,
               "con esfuerzo alto se le da mas margen: un techo fijo de 420 s "
               "garantizaba TiempoAgotado, y TiempoAgotado no se reintenta")
-    igual(cli_claude.tiempo_max("max", base_s=420), cli_claude.TIEMPO_MAXIMO_S,
+    igual(cli_codex.tiempo_max("max", base_s=420), cli_codex.TIEMPO_MAXIMO_S,
           "y hay un techo absoluto, para que nada espere indefinidamente")
-    igual(cli_claude.tiempo_max("low", base_s=420, pedido_s=900), 900,
+    igual(cli_codex.tiempo_max("low", base_s=420, pedido_s=900), 900,
           "un plazo puesto a mano manda sobre el automatico")
 
     import p3_guion
@@ -131,26 +135,26 @@ def prueba_tiempo():
 def prueba_orden():
     seccion("3] la orden del CLI se arma en un unico sitio")
 
-    orden = cli_claude.construir_orden("opus", "high", sistema="una linea")
+    orden = cli_codex.construir_orden("opus", "high", sistema="una linea")
     for bandera in ("--model", "--effort", "--output-format",
                     "--strict-mcp-config"):
         comprobar(bandera in orden, f"la orden lleva {bandera}")
     igual(orden[orden.index("--model") + 1], "opus", "y el modelo elegido")
     igual(orden[orden.index("--effort") + 1], "high", "y el esfuerzo elegido")
 
-    falla(lambda: cli_claude.construir_orden(sistema="dos\nlineas"),
+    falla(lambda: cli_codex.construir_orden(sistema="dos\nlineas"),
           "una sola linea",
           "un prompt de sistema con salto de linea se rechaza (en Windows "
           "partiria la orden de claude.cmd)")
 
-    entorno = cli_claude.entorno()
+    entorno = cli_codex.entorno()
     comprobar("CLAUDE_EFFORT" not in entorno
               and "MAX_THINKING_TOKENS" not in entorno,
               "el entorno del hijo va limpio de variables de razonamiento")
 
 
 class ProcesoFalso:
-    """Un Popen de mentira: cli_claude habla con el CLI por communicate()."""
+    """Un Popen de mentira: cli_codex habla con el CLI por communicate()."""
 
     def __init__(self, sobre=None, al_comunicar=None, codigo=0):
         self.returncode = codigo
@@ -173,17 +177,17 @@ def prueba_ejecucion():
 
     original_popen = subprocess.Popen
     original_which = shutil.which
-    original_cuentas = cli_claude.cuentas
+    original_cuentas = cli_codex.cuentas
     shutil.which = lambda nombre: r"C:\falso\claude.cmd"
     # UNA SOLA CUENTA, siempre. Esta prueba mide que UNA pasada falla limpio, y
     # sin fijarlo leeria el almacen de verdad: en una maquina con tres cuentas
     # logueadas los tres casos de fallo correrian tres veces cada uno, y el
     # texto de la comprobacion pasaria a decir otra cosa que la que mide.
-    cli_claude.cuentas = lambda: [{"etiqueta": "", "config_dir": ""}]
+    cli_codex.cuentas = lambda: [{"etiqueta": "", "config_dir": ""}]
     try:
         subprocess.Popen = lambda *a, **k: ProcesoFalso(
             {"result": "hecho", "usage": {"output_tokens": 12}})
-        texto, sobre = cli_claude.ejecutar("hola", modelo="opus",
+        texto, sobre = cli_codex.ejecutar("hola", modelo="opus",
                                            esfuerzo="medium")
         igual(texto, "hecho", "devuelve el texto de la respuesta")
         igual(sobre["_ajuste"]["modelo"], "opus",
@@ -197,23 +201,23 @@ def prueba_ejecucion():
         colgado = ProcesoFalso(
             al_comunicar=subprocess.TimeoutExpired("claude", 420))
         subprocess.Popen = lambda *a, **k: colgado
-        falla(lambda: cli_claude.ejecutar("hola", esfuerzo="low"),
+        falla(lambda: cli_codex.ejecutar("hola", esfuerzo="low"),
               "no ha respondido", "al vencer el plazo se explica y se corta")
         comprobar(colgado.matado,
                   "y se mata el proceso (con taskkill /T se van tambien los hijos)")
 
         subprocess.Popen = lambda *a, **k: ProcesoFalso(
             {"is_error": True, "result": "sin credito"})
-        falla(lambda: cli_claude.ejecutar("hola"), "devolvio error",
+        falla(lambda: cli_codex.ejecutar("hola"), "devolvio error",
               "un is_error del CLI es un error del paso")
 
         subprocess.Popen = lambda *a, **k: ProcesoFalso({"result": "   "})
-        falla(lambda: cli_claude.ejecutar("hola"), "vacia",
+        falla(lambda: cli_codex.ejecutar("hola"), "vacia",
               "una respuesta en blanco no se da por buena")
     finally:
         subprocess.Popen = original_popen
         shutil.which = original_which
-        cli_claude.cuentas = original_cuentas
+        cli_codex.cuentas = original_cuentas
 
 
 def prueba_limite():
@@ -223,34 +227,34 @@ def prueba_limite():
     # fueron 600 caracteres de JSON con `input_tokens: 0`, que parece una averia
     # del Estudio. El motivo de verdad venia dentro, en `result`.
     real = "You've hit your weekly limit · resets Aug 27, 7am (Europe/Andorra)"
-    comprobar(cli_claude.limite_de(real) == real,
+    comprobar(cli_codex.limite_de(real) == real,
               "se reconoce el mensaje REAL del CLI, tal cual lo escribe")
     for dicho in ("Claude usage limit reached. Your limit will reset at 3pm.",
                   "5-hour limit reached · resets 9pm",
                   "Has agotado tu limite semanal, se renueva el 27 de agosto",
                   "Quota exceeded for this account"):
-        comprobar(cli_claude.limite_de(dicho),
+        comprobar(cli_codex.limite_de(dicho),
                   f"y tambien esta forma: {dicho[:38]}...")
     for otro in ("", None, "el modelo no existe", "connection reset by peer",
                  "hecho"):
-        comprobar(cli_claude.limite_de(otro) is None,
+        comprobar(cli_codex.limite_de(otro) is None,
                   f"y NO se confunde con {otro!r}: un fallo normal sigue "
                   f"siendo un fallo normal")
 
     original_popen = subprocess.Popen
     original_which = shutil.which
-    original_cuentas = cli_claude.cuentas
+    original_cuentas = cli_codex.cuentas
     shutil.which = lambda nombre: r"C:\falso\claude.cmd"
-    cli_claude.cuentas = lambda: [{"etiqueta": "", "config_dir": ""}]
+    cli_codex.cuentas = lambda: [{"etiqueta": "", "config_dir": ""}]
     try:
         # codigo 1 CON sobre dentro: es como sale de verdad
         subprocess.Popen = lambda *a, **k: ProcesoFalso({"result": real,
                                                          "is_error": True},
                                                         codigo=1)
         try:
-            cli_claude.ejecutar("hola", para="el guion")
+            cli_codex.ejecutar("hola", para="el guion")
             comprobar(False, "un cupo agotado tiene que fallar")
-        except cli_claude.LimiteAgotado as fallo:
+        except cli_codex.LimiteAgotado as fallo:
             comprobar("cupo" in str(fallo) and "el guion" in str(fallo),
                       "sale un LimiteAgotado que dice QUE no se ha podido hacer")
             comprobar("resets Aug 27" in str(fallo),
@@ -264,7 +268,7 @@ def prueba_limite():
         # el mismo mensaje pero con codigo 0 e is_error: el otro camino
         subprocess.Popen = lambda *a, **k: ProcesoFalso({"result": real,
                                                          "is_error": True})
-        falla(lambda: cli_claude.ejecutar("hola"), "cupo",
+        falla(lambda: cli_codex.ejecutar("hola"), "cupo",
               "y por el camino de is_error con codigo 0, igual")
 
         # un fallo NORMAL con codigo 1 sigue explicandose, y ahora mejor: con el
@@ -272,9 +276,9 @@ def prueba_limite():
         subprocess.Popen = lambda *a, **k: ProcesoFalso(
             {"result": "model 'opus-9' not found", "is_error": True}, codigo=1)
         try:
-            cli_claude.ejecutar("hola")
+            cli_codex.ejecutar("hola")
             comprobar(False, "un fallo normal tiene que fallar")
-        except cli_claude.LimiteAgotado:
+        except cli_codex.LimiteAgotado:
             comprobar(False, "un modelo inexistente NO es un cupo agotado")
         except RuntimeError as fallo:
             comprobar("opus-9" in str(fallo),
@@ -282,17 +286,17 @@ def prueba_limite():
     finally:
         subprocess.Popen = original_popen
         shutil.which = original_which
-        cli_claude.cuentas = original_cuentas
+        cli_codex.cuentas = original_cuentas
 
     # Y NO SE REINTENTA. Reintentar un cupo agotado gasta los reintentos en un
     # segundo y hace que el error guardado sea el del ULTIMO intento: el mismo
     # mensaje, pero sin la pista de que ya se sabia desde el primero.
     import p3_guion
-    comprobar(cli_claude.LimiteAgotado in p3_guion.SIN_REINTENTO,
+    comprobar(cli_codex.LimiteAgotado in p3_guion.SIN_REINTENTO,
               "el bucle de reintentos del guion lo trata como el timeout")
-    comprobar(cli_claude.TiempoAgotado in p3_guion.SIN_REINTENTO,
+    comprobar(cli_codex.TiempoAgotado in p3_guion.SIN_REINTENTO,
               "y el timeout sigue dentro")
-    comprobar(issubclass(cli_claude.LimiteAgotado, RuntimeError),
+    comprobar(issubclass(cli_codex.LimiteAgotado, RuntimeError),
               "y sigue siendo un RuntimeError, para que la cuenta de respaldo "
               "-- que tiene OTRO cupo -- entre a probar antes de rendirse")
 
@@ -301,14 +305,14 @@ def prueba_cadena():
     seccion("6] la cadena de cuentas: por orden, y el ultimo fallo sube tal cual")
     original_popen = subprocess.Popen
     original_which = shutil.which
-    original_cuentas = cli_claude.cuentas
+    original_cuentas = cli_codex.cuentas
     shutil.which = lambda nombre: r"C:\falso\claude.cmd"
     limite = "You've hit your weekly limit \u00b7 resets Aug 27, 7am"
     try:
         tres = [{"etiqueta": "la mia", "config_dir": "C:\\a"},
                 {"etiqueta": "la segunda", "config_dir": "C:\\b"},
                 {"etiqueta": "la tercera", "config_dir": "C:\\c"}]
-        cli_claude.cuentas = lambda: list(tres)
+        cli_codex.cuentas = lambda: list(tres)
 
         # 1) la PRIMERA manda: si contesta, no se toca ninguna otra
         usadas = []
@@ -318,7 +322,7 @@ def prueba_cadena():
             return ProcesoFalso({"result": "hecho"})
 
         subprocess.Popen = falso
-        texto, sobre = cli_claude.ejecutar("hola")
+        texto, sobre = cli_codex.ejecutar("hola")
         igual(texto, "hecho", "con la primera cuenta basta")
         igual(usadas, ["C:\\a"], "y las demas ni se lanzan")
         igual(sobre["_ajuste"]["cuenta"], "la mia",
@@ -337,7 +341,7 @@ def prueba_cadena():
             return respuestas[len(usadas) - 1]
 
         subprocess.Popen = por_turnos
-        texto, sobre = cli_claude.ejecutar("hola")
+        texto, sobre = cli_codex.ejecutar("hola")
         igual(texto, "por fin", "sin cupo en las dos primeras, contesta la tercera")
         igual(usadas, ["C:\\a", "C:\\b", "C:\\c"], "y se recorren EN ORDEN")
         igual(sobre["_ajuste"]["cuenta"], "la tercera", "y se apunta cual salvo la tanda")
@@ -351,15 +355,15 @@ def prueba_cadena():
             usadas.append(k.get("env", {}).get("CLAUDE_CONFIG_DIR", "")),
             ProcesoFalso({"result": limite, "is_error": True}, codigo=1))[1]
         try:
-            cli_claude.ejecutar("hola", para="el guion")
+            cli_codex.ejecutar("hola", para="el guion")
             comprobar(False, "con todas sin cupo tiene que fallar")
-        except cli_claude.LimiteAgotado as fallo:
+        except cli_codex.LimiteAgotado as fallo:
             igual(len(usadas), 3, "se prueban las tres antes de rendirse")
             comprobar("resets Aug 27" in str(fallo),
                       "y el ultimo fallo sube TAL CUAL, sin envolver: si no, "
                       "`limite_de` deja de reconocerlo y pruebas.ps1 pinta "
                       "FALLA donde tenia que pintar CUPO")
-            comprobar(cli_claude.limite_de(str(fallo)),
+            comprobar(cli_codex.limite_de(str(fallo)),
                       "comprobado con el mismo reconocedor que usa la valvula")
         except RuntimeError as fallo:
             comprobar(False, f"tenia que ser LimiteAgotado y fue {fallo!r}")
@@ -369,22 +373,22 @@ def prueba_cadena():
         subprocess.Popen = lambda *a, **k: (
             usadas.append(k.get("env")) if "env" in k else None,
             ProcesoFalso(al_comunicar=subprocess.TimeoutExpired("claude", 420)))[1]
-        falla(lambda: cli_claude.ejecutar("hola", esfuerzo="low"),
+        falla(lambda: cli_codex.ejecutar("hola", esfuerzo="low"),
               "no ha respondido", "un plazo agotado se corta y se dice")
         igual(len(usadas), 1,
               "y NO se prueba con las otras: el techo ya escala con el "
               "esfuerzo, asi que volveria a vencer igual")
 
         # 5) sin cuentas en el almacen, el login por defecto: nunca lista vacia
-        cli_claude.cuentas = original_cuentas
+        cli_codex.cuentas = original_cuentas
         subprocess.Popen = lambda *a, **k: ProcesoFalso({"result": "vale"})
-        comprobar(len(cli_claude.cuentas()) >= 1,
+        comprobar(len(cli_codex.cuentas()) >= 1,
            "cuentas() nunca devuelve una lista vacia: sin cuentas no habria a "
            "quien llamar, y un almacen ilegible no puede dejar al Estudio mudo")
     finally:
         subprocess.Popen = original_popen
         shutil.which = original_which
-        cli_claude.cuentas = original_cuentas
+        cli_codex.cuentas = original_cuentas
 
 
 def prueba_login():
@@ -398,7 +402,7 @@ def prueba_login():
     fuente = io.open(login_cli.__file__, encoding="utf-8").read()
     comprobar('entorno["BROWSER"] = "none"' in fuente,
        "el intento apaga el navegador del CLI (medido: si no, abre un Edge)")
-    comprobar("cli_claude.SIN_VENTANA" in fuente, "y va sin consola, como todo lo demas")
+    comprobar("cli_codex.SIN_VENTANA" in fuente, "y va sin consola, como todo lo demas")
     comprobar("matar_arbol" in fuente,
        "y al matarlo se lleva el arbol: claude.cmd arranca un node aparte")
 
@@ -486,7 +490,7 @@ def prueba_recomendacion(carpeta):
     vacia = estadisticas.recomendacion("guion")
     comprobar(not vacia["hay_datos"] and "no hay ejecuciones" in vacia["motivo"],
               "sin historial dice que no hay datos, en vez de inventar")
-    igual(vacia["ajuste"]["modelo"], cli_claude.MODELO_POR_DEFECTO,
+    igual(vacia["ajuste"]["modelo"], cli_codex.MODELO_POR_DEFECTO,
           "y se queda en el ajuste por defecto")
 
     for _ in range(3):
@@ -515,7 +519,7 @@ def prueba_recomendacion(carpeta):
 
     tabla = estadisticas.comparativa("guion", 9000)
     igual(len(tabla["ajustes"]),
-          len(cli_claude.MODELOS) * len(cli_claude.ESFUERZOS),
+          len(cli_codex.MODELOS) * len(cli_codex.ESFUERZOS),
           "la comparativa trae TODAS las combinaciones, tambien las no probadas")
     comprobar(all(f.get("origen") for f in tabla["ajustes"]),
               "y cada una dice de donde sale su cifra")

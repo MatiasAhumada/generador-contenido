@@ -49,7 +49,7 @@ y por el que el plan de cartelas ve todos los planos con su duracion.
 
 Y AQUI NO SE TROCEA EN TANDAS, que es la diferencia con `plan_cartelas` y
 `plan_callouts`: el agente ESCRIBE su respuesta en un fichero en vez de
-devolverla en el mensaje (`cli_claude.escribiendo`). El limite que obligaba a
+devolverla en el mensaje (`cli_codex.escribiendo`). El limite que obligaba a
 trocear era el largo del MENSAJE, no el del contexto ni el del modelo, y esta
 
 
@@ -74,9 +74,9 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import medios  # noqa: E402
 
 try:
-    from . import cli_claude, comun, estadisticas, subtitulos
+    from . import cli_codex, comun, estadisticas, subtitulos
 except ImportError:  # ejecutado con la carpeta pasos directamente en sys.path
-    import cli_claude
+    import cli_codex
     import comun
     import estadisticas
     import subtitulos
@@ -99,11 +99,11 @@ PASO = "direccion"
 PALABRAS_MAXIMAS = 60
 PALABRAS_MINIMAS = 5
 
-MODELO_POR_DEFECTO = cli_claude.por_defecto_de(PASO)["modelo"]
-ESFUERZO_POR_DEFECTO = cli_claude.por_defecto_de(PASO)["esfuerzo"]
+MODELO_POR_DEFECTO = cli_codex.por_defecto_de(PASO)["modelo"]
+ESFUERZO_POR_DEFECTO = cli_codex.por_defecto_de(PASO)["esfuerzo"]
 TIEMPO_BASE_S = 600
 
-#: El agente ENTREGA ESCRIBIENDO un fichero (`cli_claude.escribiendo`), asi que
+#: El agente ENTREGA ESCRIBIENDO un fichero (`cli_codex.escribiendo`), asi que
 #: aqui no se puede vetar Write ni Edit: son como responde. Lo que si se veta es
 #: la red y las tareas anidadas; Bash lo veta el propio helper.
 HERRAMIENTAS_VETADAS = ("WebFetch", "WebSearch", "Task", "NotebookEdit")
@@ -908,14 +908,14 @@ def sin_tono(plan, escenas):
     return flojos
 
 
-def _llamar_claude(instruccion, modelo, esfuerzo, avance=None):
+def _llamar_codex(instruccion, modelo, esfuerzo, avance=None):
     """Se llama asi para poder engancharle el medidor de coste, que va POR NOMBRE.
 
-    Entrega ESCRIBIENDO un fichero y no en el mensaje (`cli_claude.escribiendo`):
+    Entrega ESCRIBIENDO un fichero y no en el mensaje (`cli_codex.escribiendo`):
     dirigir un video de veinte minutos son 175 bloques, y eso en una respuesta se
     corta.
     """
-    return cli_claude.escribiendo(
+    return cli_codex.escribiendo(
         instruccion, modelo=modelo, esfuerzo=esfuerzo,
         tiempo_max_s=0, base_tiempo_s=TIEMPO_BASE_S,
         herramientas_vetadas=HERRAMIENTAS_VETADAS, avance=avance,
@@ -981,7 +981,7 @@ def proponer(escenas, ajuste=None, avisar=None, proyecto_id=None, cwd=None,
 
     arranque = time.time()
     try:
-        crudo = _llamar_claude(instruccion, modelo, esfuerzo, avance)
+        crudo = _llamar_codex(instruccion, modelo, esfuerzo, avance)
     except BaseException:
         if avance is not None:
             avance.parar()

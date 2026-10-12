@@ -22,7 +22,7 @@ import tempfile
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-import cli_claude
+import cli_codex
 import p1_ingesta
 import p2_brief
 import p3_guion
@@ -71,13 +71,13 @@ def lanzar(gestor, estado, bitacora, modulo, proyecto, paso, params, tiempo_max)
         # cupo, y durante los dias que tarde en renovarse se pondria en rojo sin
         # que nada este roto. Un rojo que no significa nada ensena a ignorar el
         # rojo, y entonces el dia que se rompa algo de verdad no se ve.
-        if cli_claude.limite_de(ficha["error"]):
+        if cli_codex.limite_de(ficha["error"]):
             print("")
             print(f"  CUPO  {paso} no se ha podido correr: {ficha['error']}")
             print("        NO es un fallo del codigo. La suite se salta")
             print("        entera hasta que se renueve el cupo; las otras 19")
             print("        no llaman al CLI y siguen valiendo.")
-            raise SystemExit(cli_claude.CODIGO_SIN_CUPO)
+            raise SystemExit(cli_codex.CODIGO_SIN_CUPO)
         comprobar(False, f"{paso} termino en {ficha['estado']}: {ficha['error']}")
         raise SystemExit(f"{paso} fallo: {ficha['error']}")
     salidas = ficha["resultado"]

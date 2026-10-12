@@ -45,17 +45,17 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 try:
-    from . import cli_claude, comun, estadisticas, medios
+    from . import cli_codex, comun, estadisticas, medios
 except ImportError:  # ejecutado con la carpeta pasos directamente en sys.path
-    import cli_claude
+    import cli_codex
     import comun
     import estadisticas
     import medios
 
 PASO = "conservacion"
 
-MODELO_POR_DEFECTO = cli_claude.por_defecto_de(PASO)["modelo"]
-ESFUERZO_POR_DEFECTO = cli_claude.por_defecto_de(PASO)["esfuerzo"]
+MODELO_POR_DEFECTO = cli_codex.por_defecto_de(PASO)["modelo"]
+ESFUERZO_POR_DEFECTO = cli_codex.por_defecto_de(PASO)["esfuerzo"]
 TIEMPO_BASE_S = 240
 
 #: Cuanto se parecen dos textos para considerar que es el mismo bloque retocado
@@ -332,7 +332,7 @@ def juzgar_dudosos(dudosos, ajuste=None, avisar=None, proyecto_id=None, cwd=None
 
     arranque = time.time()
     instruccion = INSTRUCCION.format(planos=_tabla_de_dudosos(dudosos))
-    texto, sobre = _llamar_claude(instruccion, modelo, esfuerzo, cwd)
+    texto, sobre = _llamar_codex(instruccion, modelo, esfuerzo, cwd)
     datos = comun.extraer_json(texto, "la respuesta")
     vale, porque = {}, {}
     conocidos = {d["id"] for d in dudosos}
@@ -569,9 +569,9 @@ def aplicar(estado, ficha, motivo="", quien="analisis"):
     return hecho
 
 
-def _llamar_claude(instruccion, modelo, esfuerzo, cwd, avance=None):
+def _llamar_codex(instruccion, modelo, esfuerzo, cwd, avance=None):
     """Se llama asi para poder engancharle el medidor de coste, que va POR NOMBRE."""
-    return cli_claude.ejecutar(
+    return cli_codex.ejecutar(
         instruccion, modelo=modelo, esfuerzo=esfuerzo, cwd=cwd,
         tiempo_max_s=0, base_tiempo_s=TIEMPO_BASE_S,
         sistema=SISTEMA, herramientas_vetadas=HERRAMIENTAS_VETADAS,

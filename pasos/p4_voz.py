@@ -75,9 +75,9 @@ import time
 import requests
 
 try:
-    from . import cadencia, cli_claude, comun, estadisticas, marcas_tts, presets_voz
+    from . import cadencia, cli_codex, comun, estadisticas, marcas_tts, presets_voz
 except ImportError:  # ejecutado con la carpeta pasos directamente en sys.path
-    import cli_claude
+    import cli_codex
     import comun
     import cadencia
     import estadisticas
@@ -1531,10 +1531,10 @@ def reescribir_bloques(bloques, ids, peticion, ajuste=None, cwd=None,
         motivo=motivo or MOTIVO_TTS,
         bloques="\n".join(f'{b["id"]}: {b["texto"]}' for b in objetivo),
         peticion=" ".join(str(peticion).split()))
-    por_fase = cli_claude.por_defecto_de("revision_audio")
+    por_fase = cli_codex.por_defecto_de("revision_audio")
     ajuste = ajuste or {"modelo": por_fase["modelo"],
                         "esfuerzo": por_fase["esfuerzo"]}
-    texto, _sobre = cli_claude.ejecutar(
+    texto, _sobre = cli_codex.ejecutar(
         instruccion, modelo=ajuste["modelo"], esfuerzo=ajuste["esfuerzo"],
         cwd=cwd, base_tiempo_s=300,
         sistema="Responde solo con el objeto JSON pedido.",

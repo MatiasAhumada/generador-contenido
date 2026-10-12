@@ -235,7 +235,7 @@ def prueba_catalogo():
         recibido["prompt"] = instruccion
         raise Corte()
 
-    with mock.patch.object(catalogo_visual, "_llamar_claude", side_effect=llamar):
+    with mock.patch.object(catalogo_visual, "_llamar_codex", side_effect=llamar):
         try:
             catalogo_visual.proponer(
                 [{"id": "B001", "texto": "Revisa el contrato de la vivienda."}],

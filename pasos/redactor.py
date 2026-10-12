@@ -59,9 +59,9 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import medios  # noqa: E402
 
 try:
-    from . import cli_claude, estadisticas
+    from . import cli_codex, estadisticas
 except ImportError:  # ejecutado con la carpeta pasos directamente en sys.path
-    import cli_claude
+    import cli_codex
     import estadisticas
 
 PASO = "redactor"
@@ -74,8 +74,8 @@ PASO = "redactor"
 PALABRAS_MAXIMAS = 160
 PALABRAS_MINIMAS = 12
 
-MODELO_POR_DEFECTO = cli_claude.por_defecto_de(PASO)["modelo"]
-ESFUERZO_POR_DEFECTO = cli_claude.por_defecto_de(PASO)["esfuerzo"]
+MODELO_POR_DEFECTO = cli_codex.por_defecto_de(PASO)["modelo"]
+ESFUERZO_POR_DEFECTO = cli_codex.por_defecto_de(PASO)["esfuerzo"]
 TIEMPO_BASE_S = 700
 
 HERRAMIENTAS_VETADAS = ("WebFetch", "WebSearch", "Task", "NotebookEdit")
@@ -437,9 +437,9 @@ def repetidos(plan, escenas):
     return [sorted(ids) for ids in por_texto.values() if len(ids) > 1]
 
 
-def _llamar_claude(instruccion, modelo, esfuerzo, avance=None):
+def _llamar_codex(instruccion, modelo, esfuerzo, avance=None):
     """Entrega ESCRIBIENDO un fichero: 299 parrafos no caben en un mensaje."""
-    return cli_claude.escribiendo(
+    return cli_codex.escribiendo(
         instruccion, modelo=modelo, esfuerzo=esfuerzo,
         tiempo_max_s=0, base_tiempo_s=TIEMPO_BASE_S,
         herramientas_vetadas=HERRAMIENTAS_VETADAS, avance=avance,
@@ -486,7 +486,7 @@ def proponer(escenas, ajuste=None, avisar=None, proyecto_id=None, cwd=None,
 
     arranque = time.time()
     try:
-        crudo = _llamar_claude(instruccion, modelo, esfuerzo, avance)
+        crudo = _llamar_codex(instruccion, modelo, esfuerzo, avance)
     except BaseException:
         if avance is not None:
             avance.parar()

@@ -11,7 +11,7 @@ Aqui cada proveedor tiene su prueba, elegida para que NO cueste dinero:
     cartesia   GET /voices                 lista voces; no sintetiza nada
     jamendo    GET /tracks/?limit=1        una busqueda; el plan es gratuito
     freesound  GET /search/text/?page_size=1   idem
-    claude     salud_cli.probar por cuenta  (haiku, una palabra: es lo minimo)
+    codex      salud_cli.probar              (una respuesta mínima; consume uso del plan)
 
 LO QUE NO PUEDE DECIR, y se dice tal cual: que OpenAI tenga SALDO. La unica
 forma de saberlo es generar una imagen, y eso se paga. Si la clave autentica,
@@ -174,29 +174,34 @@ def probar_freesound(clave):
                                       f"{_texto_corto(respuesta)}")
 
 
-def probar_claude(cuentas):
-    """Una ficha por cuenta del CLI con sesion, con lo que apunta salud_cli."""
+def probar_codex(cuentas):
+    """Prueba la sesión local de Codex con una respuesta mínima del modelo."""
     fichas = []
     for cuenta in cuentas:
         etiqueta = cuenta.get("etiqueta") or cuenta.get("correo") or cuenta.get("id") or "la cuenta"
         salud = salud_cli.probar(cuenta, para="probar todas las claves")
         estado = "ok" if salud["estado"] == "ok" else "mal"
-        fichas.append(_ficha("claude", estado, salud_cli.describir(salud, etiqueta),
+        fichas.append(_ficha("codex", estado, salud_cli.describir(salud, etiqueta),
                              cuenta=cuenta.get("id") or "", salud=salud))
     if not fichas:
-        fichas.append(_ficha("claude", "sin_clave", "no hay ninguna cuenta de Claude con sesion"))
+        fichas.append(_ficha("codex", "sin_clave", "no se encontró una sesión de Codex"))
     return fichas
 
 
 # ------------------------------------------------------------------ todo junto
 
-def probar_todas(cuentas_claude=(), con_claude=True):
+def probar_todas(cuentas_codex=(), con_codex=True, cuentas_claude=None,
+                 con_claude=None):
     """Todas las claves del almacen, cada una contra su servicio. -> [fichas]
 
-    `cuentas_claude` son las fichas del CLI que hay que probar (las decide
+    `cuentas_codex` son las fichas del CLI que hay que probar (las decide
     quien llama, que es quien sabe cuales tienen sesion). En modo simulado no
     se sale a ningun sitio: cada clave puesta se da por buena.
     """
+    if cuentas_claude is not None:
+        cuentas_codex = cuentas_claude
+    if con_claude is not None:
+        con_codex = con_claude
     almacen = claves.leer()
     fichas = []
     if salud_cli.simulado():
@@ -206,8 +211,8 @@ def probar_todas(cuentas_claude=(), con_claude=True):
                                   ("freesound", bool(almacen["freesound"]["clave"]))):
             fichas.append(_ficha(proveedor, "ok" if puesta else "sin_clave",
                                  "simulado" if puesta else "sin poner"))
-        if con_claude:
-            fichas.extend(probar_claude(cuentas_claude))
+        if con_codex:
+            fichas.extend(probar_codex(cuentas_codex))
         return fichas
     pruebas = (
         (probar_openai, (almacen["openai"][0]["clave"] if almacen["openai"] else "")),
@@ -222,18 +227,18 @@ def probar_todas(cuentas_claude=(), con_claude=True):
             nombre = funcion.__name__.replace("probar_", "")
             fichas.append(_ficha(nombre, "sin_red", f"la prueba ha fallado: "
                                                      f"{type(fallo).__name__}: {fallo}"))
-    if con_claude:
+    if con_codex:
         try:
-            fichas.extend(probar_claude(cuentas_claude))
+            fichas.extend(probar_codex(cuentas_codex))
         except Exception as fallo:                     # noqa: BLE001
-            fichas.append(_ficha("claude", "sin_red", f"la prueba ha fallado: "
+            fichas.append(_ficha("codex", "sin_red", f"la prueba ha fallado: "
                                                       f"{type(fallo).__name__}: {fallo}"))
     return fichas
 
 
 NOMBRES = {"openai": "OpenAI (imágenes)", "cartesia": "Cartesia (voz)",
            "jamendo": "Jamendo (música)", "freesound": "FreeSound (efectos)",
-           "claude": "Claude"}
+           "codex": "Codex (plan ChatGPT)"}
 
 
 def resumen_texto(fichas):

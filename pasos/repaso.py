@@ -55,17 +55,17 @@ import unicodedata
 import time
 
 try:
-    from . import cli_claude, comun, estadisticas, subtitulos
+    from . import cli_codex, comun, estadisticas, subtitulos
 except ImportError:  # ejecutado con la carpeta pasos directamente en sys.path
-    import cli_claude
+    import cli_codex
     import comun
     import estadisticas
     import subtitulos
 
 PASO = "repaso"
 
-MODELO_POR_DEFECTO = cli_claude.por_defecto_de("repaso")["modelo"]
-ESFUERZO_POR_DEFECTO = cli_claude.por_defecto_de("repaso")["esfuerzo"]
+MODELO_POR_DEFECTO = cli_codex.por_defecto_de("repaso")["modelo"]
+ESFUERZO_POR_DEFECTO = cli_codex.por_defecto_de("repaso")["esfuerzo"]
 TIEMPO_BASE_S = 480
 
 FICHERO = "repaso.json"
@@ -931,9 +931,9 @@ def enrutar(notas, contextos, guion_bloques, titulo="", duracion=0.0,
     if not notas:
         return {"notas": [], "cambios": [], "avisos": ["no hay notas que aplicar"]}
     ajuste = dict(ajuste or {})
-    modelo = cli_claude.normalizar_modelo(ajuste.get("modelo"),
+    modelo = cli_codex.normalizar_modelo(ajuste.get("modelo"),
                                           defecto=MODELO_POR_DEFECTO)
-    esfuerzo = cli_claude.normalizar_esfuerzo(ajuste.get("esfuerzo"),
+    esfuerzo = cli_codex.normalizar_esfuerzo(ajuste.get("esfuerzo"),
                                               defecto=ESFUERZO_POR_DEFECTO)
     # las rutas de las imagenes se resuelven ANTES: el agente las abre con Read
     for nota in notas:
@@ -951,7 +951,7 @@ def enrutar(notas, contextos, guion_bloques, titulo="", duracion=0.0,
     arranque = time.time()
     vetados = {str(a) for a in (ambitos_vetados or ())}
     avisar(0.1, f"leyendo {len(notas)} nota(s) del repaso")
-    texto, _sobre = cli_claude.ejecutar(
+    texto, _sobre = cli_codex.ejecutar(
         instruccion, modelo=modelo, esfuerzo=esfuerzo, cwd=cwd,
         tiempo_max_s=0, base_tiempo_s=TIEMPO_BASE_S, sistema=SISTEMA,
         herramientas_vetadas=HERRAMIENTAS_VETADAS,

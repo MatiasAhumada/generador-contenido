@@ -33,9 +33,9 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 try:
-    from . import cli_claude, comun, p4_voz
+    from . import cli_codex, comun, p4_voz
 except ImportError:  # ejecutado con la carpeta pasos directamente en sys.path
-    import cli_claude
+    import cli_codex
     import comun
     import p4_voz
 
@@ -185,7 +185,7 @@ def proponer(encargo, idioma="es", ajuste=None, avisar=None, proyecto_id=None,
         raise RuntimeError(f"la voz elegida a mano ({voz_fija}) no esta en el "
                            f"catalogo de esta cuenta de Cartesia para "
                            f"{idioma!r}: revisa la clave o el idioma")
-    por_fase = cli_claude.por_defecto_de(PASO)
+    por_fase = cli_codex.por_defecto_de(PASO)
     ajuste = ajuste or {"modelo": por_fase["modelo"],
                         "esfuerzo": por_fase["esfuerzo"]}
 
@@ -211,7 +211,7 @@ def proponer(encargo, idioma="es", ajuste=None, avisar=None, proyecto_id=None,
     avisa(0.15, ("poniendo los mandos a la voz elegida a mano"
                  if voz_fija else
                  f"eligiendo entre {len(ids)} voces") + f" con {ajuste['modelo']}")
-    texto, sobre = cli_claude.ejecutar(
+    texto, sobre = cli_codex.ejecutar(
         instruccion, modelo=ajuste["modelo"], esfuerzo=ajuste["esfuerzo"],
         cwd=cwd, base_tiempo_s=TIEMPO_BASE_S, sistema=SISTEMA,
         herramientas_vetadas=HERRAMIENTAS_VETADAS,

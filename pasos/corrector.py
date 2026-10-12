@@ -16,7 +16,7 @@ nombraba OTRA escena, OTRO personaje o «personajes genéricos del estilo».
 
 QUE HACE
 --------
-Un agente del CLI (`cli_claude`, el mismo motor que el catálogo, la dirección y
+Un agente del CLI (`cli_codex`, el mismo motor que el catálogo, la dirección y
 el repaso) recibe la nota, el contexto del plano y un INVENTARIO de todo el
 material del vídeo con sus rutas: la imagen actual, las versiones anteriores de
 ese plano, los planos vecinos, todas las hojas del reparto, las láminas del
@@ -58,14 +58,14 @@ import os
 import time
 
 try:
-    from . import cli_claude, comun
+    from . import cli_codex, comun
 except ImportError:  # ejecutado con la carpeta pasos directamente en sys.path
-    import cli_claude
+    import cli_codex
     import comun
 
 FASE = "corrector_imagen"
-MODELO_POR_DEFECTO = cli_claude.por_defecto_de(FASE)["modelo"]
-ESFUERZO_POR_DEFECTO = cli_claude.por_defecto_de(FASE)["esfuerzo"]
+MODELO_POR_DEFECTO = cli_codex.por_defecto_de(FASE)["modelo"]
+ESFUERZO_POR_DEFECTO = cli_codex.por_defecto_de(FASE)["esfuerzo"]
 TIEMPO_BASE_S = 360
 
 #: Cuantas imagenes puede adjuntar el agente ademas de la lamina del estilo. La
@@ -219,9 +219,9 @@ def preparar(nota, escena, catalogo, estilo_legible, regla_especie, inventario,
                for f in inventario}
     reparto = (catalogo or {}).get("reparto") or {}
     ajuste = dict(ajuste or {})
-    modelo = cli_claude.normalizar_modelo(ajuste.get("modelo"),
+    modelo = cli_codex.normalizar_modelo(ajuste.get("modelo"),
                                           defecto=MODELO_POR_DEFECTO)
-    esfuerzo = cli_claude.normalizar_esfuerzo(ajuste.get("esfuerzo"),
+    esfuerzo = cli_codex.normalizar_esfuerzo(ajuste.get("esfuerzo"),
                                               defecto=ESFUERZO_POR_DEFECTO)
     instruccion = INSTRUCCION.format(
         sid=escena.get("id"), titulo=_texto(titulo, 120) or "sin titulo",
@@ -247,7 +247,7 @@ def preparar(nota, escena, catalogo, estilo_legible, regla_especie, inventario,
     avisar(0.05, f"{escena.get('id')}: el corrector esta leyendo la nota y las "
                  f"imagenes")
     try:
-        texto, _sobre = cli_claude.ejecutar(
+        texto, _sobre = cli_codex.ejecutar(
             instruccion, modelo=modelo, esfuerzo=esfuerzo, cwd=cwd,
             tiempo_max_s=0, base_tiempo_s=TIEMPO_BASE_S, sistema=SISTEMA,
             herramientas_vetadas=HERRAMIENTAS_VETADAS,

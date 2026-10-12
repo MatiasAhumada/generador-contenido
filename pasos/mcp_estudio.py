@@ -97,16 +97,16 @@ def _pid(argumentos):
 
 def probar_claves(argumentos):
     """Prueba cada clave contra su servicio: OpenAI, Cartesia, Jamendo, FreeSound."""
-    con_claude = bool(argumentos.get("claude", False))
-    codigo, datos = _llamar("POST", "/api/claves/probar", {"claude": con_claude},
-                            tiempo=400 if con_claude else 120)
+    con_codex = bool(argumentos.get("codex", False))
+    codigo, datos = _llamar("POST", "/api/claves/probar", {"codex": con_codex},
+                            tiempo=400 if con_codex else 120)
     if codigo != 200:
         return _error_de(codigo, datos)
     return datos.get("resumen") or json.dumps(datos, ensure_ascii=False, indent=1)
 
 
-def probar_claude(argumentos):
-    """Prueba las cuentas de Claude con una llamada minima y dice cual contesta."""
+def probar_codex(argumentos):
+    """Prueba la sesión local de Codex con una llamada mínima."""
     codigo, datos = _llamar("POST", "/api/asistente/probar", {}, tiempo=400)
     if codigo != 200:
         return _error_de(codigo, datos)
@@ -220,15 +220,14 @@ HERRAMIENTAS = {
     "probar_claves": (probar_claves,
         "Prueba DE VERDAD cada clave contra su servicio (OpenAI, Cartesia, Jamendo, "
         "FreeSound) con una llamada que no cuesta dinero, y dice cual autentica y cual "
-        "no. Con claude=true prueba tambien las cuentas de Claude (tarda mas). Usala "
+        "no. Con codex=true prueba tambien Codex (tarda mas). Usala "
         "cuando pregunten si las claves estan bien o si algo falla por una clave.",
-        {"claude": {"type": "boolean", "description": "probar tambien las cuentas de Claude"}}),
-    "probar_claude": (probar_claude,
-        "Prueba las cuentas de Claude del CLI con una llamada minima y dice cual "
-        "contesta, cual tiene el cupo agotado (y cuando se renueva) y cual no tiene sesion.",
+        {"codex": {"type": "boolean", "description": "probar también la sesión local de Codex"}}),
+    "probar_codex": (probar_codex,
+        "Prueba Codex CLI usando la sesión de ChatGPT de este equipo y dice si responde.",
         {}),
     "estado_estudio": (estado_estudio,
-        "La foto del estado del Estudio ahora mismo: claves puestas, cuentas de Claude, "
+        "La foto del estado del Estudio ahora mismo: claves puestas, sesión de Codex, "
         "proyectos, y del proyecto abierto sus ocho pasos, trabajos, bitacora y coste.",
         {"proyecto": {"type": "string", "description": "id del proyecto; por defecto el abierto"}}),
     "trabajos": (trabajos,

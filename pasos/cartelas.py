@@ -90,9 +90,9 @@ import medios  # noqa: E402
 import tipografia  # noqa: E402
 
 try:
-    from . import cli_claude, estadisticas
+    from . import cli_codex, estadisticas
 except ImportError:  # ejecutado con la carpeta pasos directamente en sys.path
-    import cli_claude
+    import cli_codex
     import estadisticas
 
 PASO = "plan_cartelas"
@@ -2318,14 +2318,14 @@ def repartir(escenas, plan_bruto, avisar_tope=True, ocupacion=None):
 
 # ------------------------------------------------------------- el agente
 
-MODELO_POR_DEFECTO = cli_claude.por_defecto_de(PASO)["modelo"]
-ESFUERZO_POR_DEFECTO = cli_claude.por_defecto_de(PASO)["esfuerzo"]
+MODELO_POR_DEFECTO = cli_codex.por_defecto_de(PASO)["modelo"]
+ESFUERZO_POR_DEFECTO = cli_codex.por_defecto_de(PASO)["esfuerzo"]
 TIEMPO_BASE_S = 300
 
 #: No necesita ver ninguna imagen: decide con el GUION delante, y por eso puede
 #: correr antes de generar los planos -- que es justo lo que evita pagar una
 #: imagen para un plano que va a ser una cartela. Lo unico que escribe es su
-#: propia respuesta (`cli_claude.escribiendo`), en una carpeta temporal.
+#: propia respuesta (`cli_codex.escribiendo`), en una carpeta temporal.
 HERRAMIENTAS_VETADAS = ("WebFetch", "WebSearch", "Task", "TodoWrite",
                         "NotebookEdit")
 
@@ -2601,7 +2601,7 @@ def proponer(escenas, params=None, ajuste=None, avisar=None, proyecto_id=None,
 
     `cwd` se admite por simetria con los demas agentes y se IGNORA: aqui el
     agente entrega escribiendo un fichero, y eso tiene que caer en una carpeta
-    temporal y no en el proyecto (`cli_claude.escribiendo`).
+    temporal y no en el proyecto (`cli_codex.escribiendo`).
     """
     ajuste = ajuste or {}
     modelo = ajuste.get("modelo") or MODELO_POR_DEFECTO
@@ -2638,7 +2638,7 @@ def proponer(escenas, params=None, ajuste=None, avisar=None, proyecto_id=None,
         planos=_planos_legibles(escenas))
     arranque = time.time()
     try:
-        crudo = _llamar_claude(instruccion, modelo, esfuerzo, avance)
+        crudo = _llamar_codex(instruccion, modelo, esfuerzo, avance)
         bruto, avisos = _limpiar(crudo, {e["id"] for e in escenas}, activas,
                                  params)
     except BaseException:
@@ -2672,12 +2672,12 @@ def proponer(escenas, params=None, ajuste=None, avisar=None, proyecto_id=None,
     }
 
 
-def _llamar_claude(instruccion, modelo, esfuerzo, avance=None):
+def _llamar_codex(instruccion, modelo, esfuerzo, avance=None):
     """Se llama asi para poder engancharle el medidor de coste, que va POR NOMBRE.
 
     Entrega ESCRIBIENDO un fichero y no en el mensaje.
     """
-    return cli_claude.escribiendo(
+    return cli_codex.escribiendo(
         instruccion, modelo=modelo, esfuerzo=esfuerzo,
         tiempo_max_s=0, base_tiempo_s=TIEMPO_BASE_S,
         herramientas_vetadas=HERRAMIENTAS_VETADAS, avance=avance,

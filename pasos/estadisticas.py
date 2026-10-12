@@ -4,7 +4,7 @@ Historico de ejecuciones reales, estimacion honesta y recomendacion de ajustes.
 Que resuelve
 ------------
 Los pasos que llaman a un modelo no emiten progreso: una invocacion de
-'claude -p' no dice por donde va. Antes se reportaba un 10% fijo que saltaba al
+'codex exec' no dice por dónde va. Antes se reportaba un 10% fijo que saltaba al
 100% al terminar, que es peor que no reportar nada porque parece una medida.
 
 Aqui se guarda cuanto tardo DE VERDAD cada ejecucion (en
@@ -49,9 +49,9 @@ import threading
 import time
 
 try:
-    from . import cli_claude
+    from . import cli_codex
 except ImportError:  # ejecutado con la carpeta pasos directamente en sys.path
-    import cli_claude
+    import cli_codex
 
 RUTA_POR_DEFECTO = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
@@ -233,7 +233,7 @@ def clave_de(registro):
     ajuste = ajuste_de(registro)
     if not ajuste:
         return ""
-    return cli_claude.clave_ajuste(ajuste.get("modelo"), ajuste.get("esfuerzo"))
+    return cli_codex.clave_ajuste(ajuste.get("modelo"), ajuste.get("esfuerzo"))
 
 
 def _clave_pedida(ajuste):
@@ -241,7 +241,7 @@ def _clave_pedida(ajuste):
         return ""
     if isinstance(ajuste, str):
         return ajuste
-    return cli_claude.clave_ajuste(ajuste.get("modelo"), ajuste.get("esfuerzo"))
+    return cli_codex.clave_ajuste(ajuste.get("modelo"), ajuste.get("esfuerzo"))
 
 
 def _recortar(historial):
@@ -295,9 +295,9 @@ def anotar(paso, segundos, tamano=0, ok=True, detalle=None, ajuste=None,
                   "esfuerzo": detalle.get("esfuerzo")}
     if isinstance(ajuste, dict) and ajuste.get("modelo"):
         registro["ajuste"] = {
-            "modelo": cli_claude.normalizar_modelo(ajuste.get("modelo"),
+            "modelo": cli_codex.normalizar_modelo(ajuste.get("modelo"),
                                                    estricto=False),
-            "esfuerzo": cli_claude.normalizar_esfuerzo(ajuste.get("esfuerzo"),
+            "esfuerzo": cli_codex.normalizar_esfuerzo(ajuste.get("esfuerzo"),
                                                        estricto=False),
         }
     # El id del proyecto y el idioma se guardan desde el principio aunque el eje
@@ -474,7 +474,7 @@ def estimar(paso, tamano=0, ajuste=None):
 
     # 3: otra combinacion, reescalada por el factor relativo
     if clave:
-        factor_pedido = cli_claude.factor(pedido.get("modelo"),
+        factor_pedido = cli_codex.factor(pedido.get("modelo"),
                                           pedido.get("esfuerzo"))
         mejores = None
         for otra_clave in {clave_de(r) for r in todas if clave_de(r)}:
@@ -483,7 +483,7 @@ def estimar(paso, tamano=0, ajuste=None):
             if not calculo:
                 continue
             modelo, _, esfuerzo = otra_clave.partition("|")
-            factor_otra = cli_claude.factor(modelo, esfuerzo)
+            factor_otra = cli_codex.factor(modelo, esfuerzo)
             if factor_otra <= 0:
                 continue
             candidata = (calculo[2], calculo[0] * factor_pedido / factor_otra,
@@ -512,9 +512,9 @@ def estimar(paso, tamano=0, ajuste=None):
     origen = "estimacion inicial, sin historial todavia"
     medido_con = base.get("medido_con")
     if clave and medido_con:
-        factor_base = cli_claude.factor(medido_con.get("modelo"),
+        factor_base = cli_codex.factor(medido_con.get("modelo"),
                                         medido_con.get("esfuerzo"))
-        factor_pedido = cli_claude.factor(pedido.get("modelo"),
+        factor_pedido = cli_codex.factor(pedido.get("modelo"),
                                           pedido.get("esfuerzo"))
         if factor_base > 0:
             segundos = segundos * factor_pedido / factor_base
@@ -544,7 +544,7 @@ def reloj(segundos):
 
 def resumen_ajuste(paso, modelo, esfuerzo, tamano=0):
     """Todo lo que se sabe de una combinacion en un paso."""
-    clave = cli_claude.clave_ajuste(modelo, esfuerzo)
+    clave = cli_codex.clave_ajuste(modelo, esfuerzo)
     registros = [r for r in historial(paso) if clave_de(r) == clave]
     correctas = [r for r in registros if r.get("ok")]
     fallidas = [r for r in registros if not r.get("ok")]
@@ -589,8 +589,8 @@ def comparativa(paso, tamano=0, modelos=None, esfuerzos=None):
     Es lo que necesita el selector para que elegir un ajuste sea una decision
     informada y no una apuesta.
     """
-    modelos = list(modelos or cli_claude.MODELOS)
-    esfuerzos = list(esfuerzos or cli_claude.ESFUERZOS)
+    modelos = list(modelos or cli_codex.MODELOS)
+    esfuerzos = list(esfuerzos or cli_codex.ESFUERZOS)
     filas = [resumen_ajuste(paso, modelo, esfuerzo, tamano=tamano)
              for modelo in modelos for esfuerzo in esfuerzos]
     return {
@@ -662,7 +662,7 @@ def recomendacion(paso, tamano=0, modelos=None, esfuerzos=None):
         salida["segundos"] = elegida["segundos"]
         salida["reloj"] = elegida["reloj"]
     else:
-        salida["ajuste"] = dict(cli_claude.catalogo()["por_defecto"])
+        salida["ajuste"] = dict(cli_codex.catalogo()["por_defecto"])
     return salida
 
 

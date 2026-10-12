@@ -241,7 +241,7 @@ def prueba_medidor(proyecto):
 class FalsoProceso:
     """Un Popen de mentira, para no llamar al CLI de verdad.
 
-    Los cuatro sitios que hablan con el CLI pasan por pasos/cli_claude, que usa
+    Los cuatro sitios que hablan con el CLI pasan por pasos/cli_codex, que usa
     Popen y no run: hace falta para poder matar el arbol de procesos al vencer el
     plazo y para que la cancelacion desde la UI llegue al hijo.
     """
@@ -305,7 +305,7 @@ def prueba_instrumentacion(proyecto):
         copia.generar = falsa_imagen
     pasos.p4_voz._toma_real = falsa_toma
     pasos.p4_voz._toma_por_contexto = falsa_toma_contexto
-    pasos.p3_guion._llamar_claude = falso_claude
+    pasos.p3_guion._llamar_codex = falso_claude
     informe = coste.instrumentar(pasos)
     ok("assets.producir_imagen" in informe["enganchado"], "engancha assets")
     ok("imagen_openai.generar" in informe["enganchado"], "engancha el motor de imagen")
@@ -400,7 +400,7 @@ def prueba_instrumentacion(proyecto):
 
     antes = len(medidor.eventos())
     with coste.contexto(proyecto, "guion"):
-        pasos.p3_guion._llamar_claude("redacta", {"modelo": "sonnet"}, proyecto.raiz)
+        pasos.p3_guion._llamar_codex("redacta", {"modelo": "sonnet"}, proyecto.raiz)
     evento = medidor.eventos()[antes:][0]
     igual(evento["proveedor"], "claude_cli", "el CLI reporta como claude_cli")
     igual(evento["tokens"]["cache"], 18000, "suma creacion y lectura de cache")
@@ -883,8 +883,10 @@ def prueba_agente(carpeta, proyecto):
     medidor = coste.Medidor(proyecto)
     antes = len(medidor.eventos())
     original_popen, original_which = subprocess_real.Popen, shutil_real.which
+    original_validar = app.CLI_CODEX.validar_sesion_chatgpt
     subprocess_real.Popen = falso_popen
     shutil_real.which = lambda nombre: r"C:\falso\claude.cmd"
+    app.CLI_CODEX.validar_sesion_chatgpt = lambda *a, **k: None
     try:
         resultado = app._correr_capturas_agente(
             lambda *a, **k: None, ctx, grupos, "callouts", ["escena:S002"],
@@ -892,6 +894,7 @@ def prueba_agente(carpeta, proyecto):
     finally:
         subprocess_real.Popen = original_popen
         shutil_real.which = original_which
+        app.CLI_CODEX.validar_sesion_chatgpt = original_validar
 
     # el ajuste llega por invocacion, no por params del paso: mover el
     # desplegable no puede dejar obsoleto el video entero

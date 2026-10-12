@@ -49,9 +49,9 @@ import shutil
 import time
 
 try:
-    from . import cli_claude, comun, estadisticas
+    from . import cli_codex, comun, estadisticas
 except ImportError:  # ejecutado con la carpeta pasos directamente en sys.path
-    import cli_claude
+    import cli_codex
     import comun
     import estadisticas
 
@@ -238,9 +238,9 @@ Fijate en, y contesta a todo lo que puedas afirmar mirando:
 """ + CONTRATO_JSON_GUIA
 
 
-def _llamar_claude(instruccion, modelo, esfuerzo, cwd, avance=None):
+def _llamar_codex(instruccion, modelo, esfuerzo, cwd, avance=None):
     """Se llama asi para que el medidor de coste pueda engancharla por nombre."""
-    return cli_claude.ejecutar(
+    return cli_codex.ejecutar(
         instruccion, modelo=modelo, esfuerzo=esfuerzo, cwd=cwd,
         tiempo_max_s=0, base_tiempo_s=TIEMPO_BASE_GUIA_S,
         sistema=SISTEMA_GUIA, herramientas_vetadas=HERRAMIENTAS_GUIA,
@@ -283,10 +283,10 @@ def generar_guia(proyecto, rutas, modelo=None, esfuerzo=None, avisar=None,
     # con el modelo mas barato del Estudio, que es justo lo que no se quiere para
     # la unica descripcion en palabras del dibujo del video: pasaba, y se colaba
     # sin que nadie lo viera porque el resultado siempre es una guia plausible.
-    por_fase = cli_claude.por_defecto_de(PASO_GUIA)
-    modelo = cli_claude.normalizar_modelo(modelo or por_fase["modelo"],
+    por_fase = cli_codex.por_defecto_de(PASO_GUIA)
+    modelo = cli_codex.normalizar_modelo(modelo or por_fase["modelo"],
                                           estricto=False)
-    esfuerzo = cli_claude.normalizar_esfuerzo(esfuerzo or por_fase["esfuerzo"],
+    esfuerzo = cli_codex.normalizar_esfuerzo(esfuerzo or por_fase["esfuerzo"],
                                               estricto=False)
     ajuste = {"modelo": modelo, "esfuerzo": esfuerzo}
 
@@ -313,7 +313,7 @@ def generar_guia(proyecto, rutas, modelo=None, esfuerzo=None, avisar=None,
 
     arranque = time.time()
     try:
-        texto, sobre = _llamar_claude(instruccion, modelo, esfuerzo, carpeta,
+        texto, sobre = _llamar_codex(instruccion, modelo, esfuerzo, carpeta,
                                       avance)
     except BaseException:
         if avance is not None:
@@ -534,10 +534,10 @@ def guia_de_descripcion(proyecto, descripcion, modelo=None, esfuerzo=None,
                          "alguna imagen, o describe el estilo grafico con algo "
                          "mas de detalle (con dos palabras se lo inventa todo)")
 
-    por_fase = cli_claude.por_defecto_de(PASO_GUIA)
-    modelo = cli_claude.normalizar_modelo(modelo or por_fase["modelo"],
+    por_fase = cli_codex.por_defecto_de(PASO_GUIA)
+    modelo = cli_codex.normalizar_modelo(modelo or por_fase["modelo"],
                                           estricto=False)
-    esfuerzo = cli_claude.normalizar_esfuerzo(esfuerzo or por_fase["esfuerzo"],
+    esfuerzo = cli_codex.normalizar_esfuerzo(esfuerzo or por_fase["esfuerzo"],
                                               estricto=False)
     ajuste = {"modelo": modelo, "esfuerzo": esfuerzo}
 
@@ -580,7 +580,7 @@ def guia_de_descripcion(proyecto, descripcion, modelo=None, esfuerzo=None,
         # camino del video. Sin ellas no hay ningun fichero que abrir y se le
         # vetan las herramientas de lectura: dejarselas seria invitarle a buscar
         # imagenes por el disco.
-        llamar = _llamar_claude if rutas else _llamar_claude_sin_ficheros
+        llamar = _llamar_codex if rutas else _llamar_codex_sin_ficheros
         texto, sobre = llamar(instruccion, modelo, esfuerzo, carpeta, avance)
     except BaseException:
         if avance is not None:
@@ -609,9 +609,9 @@ def guia_de_descripcion(proyecto, descripcion, modelo=None, esfuerzo=None,
     return ficha_guia
 
 
-def _llamar_claude_sin_ficheros(instruccion, modelo, esfuerzo, cwd, avance=None):
-    """Como `_llamar_claude` pero sin dejarle abrir nada del disco."""
-    return cli_claude.ejecutar(
+def _llamar_codex_sin_ficheros(instruccion, modelo, esfuerzo, cwd, avance=None):
+    """Como `_llamar_codex` pero sin dejarle abrir nada del disco."""
+    return cli_codex.ejecutar(
         instruccion, modelo=modelo, esfuerzo=esfuerzo, cwd=cwd,
         base_tiempo_s=TIEMPO_BASE_GUIA_S, sistema=SISTEMA_GUIA,
         herramientas_vetadas=HERRAMIENTAS_GUIA + ("Read", "Glob", "Grep"),

@@ -669,7 +669,7 @@ def probar_la_frase_del_estilo_llega_al_prompt():
     import estilo as mod_estilo
 
     visto = {}
-    original = mod_estilo._llamar_claude
+    original = mod_estilo._llamar_codex
 
     def falso(instruccion, modelo, esfuerzo, carpeta, avance):
         visto["instruccion"] = instruccion
@@ -677,7 +677,7 @@ def probar_la_frase_del_estilo_llega_al_prompt():
 
     carpeta = tempfile.mkdtemp(prefix="prueba_guia_")
     try:
-        mod_estilo._llamar_claude = falso
+        mod_estilo._llamar_codex = falso
         rutas = []
         for n in range(3):
             ruta = os.path.join(carpeta, f"f{n}.png")
@@ -717,7 +717,7 @@ def probar_la_frase_del_estilo_llega_al_prompt():
            "y el camino sin video usa el MISMO bloque: dos formas de decir «y "
            "ademas quiero esto» acabarian separandose")
     finally:
-        mod_estilo._llamar_claude = original
+        mod_estilo._llamar_codex = original
         shutil.rmtree(carpeta, ignore_errors=True)
 
 

@@ -147,7 +147,7 @@ def escribir_texto(ruta, texto):
 
 
 def tokens_de_cli(sobre):
-    """Tokens que declara el CLI de Claude en su sobre JSON.
+    """Tokens que declara el CLI en su sobre JSON.
 
     El sobre trae ademas 'total_cost_usd', que aqui no se usa a proposito: el
     CLI va contra la suscripcion, no contra un contador con precio por llamada,

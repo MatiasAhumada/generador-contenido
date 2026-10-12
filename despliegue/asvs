@@ -10,6 +10,7 @@
 #      asvs reiniciar    apagar y encender
 #      asvs actualizar   traer la ultima version (sin tocar tus videos)
 #      asvs clave        ver o cambiar la contrasena de acceso
+#      asvs codex-login  conectar la sesion ChatGPT de Codex al servicio
 #      asvs https        (re)intentar el certificado
 # -----------------------------------------------------------------------------
 set -euo pipefail
@@ -54,7 +55,14 @@ estado() {
   printf '\n%s  lo que hace falta para generar%s\n' "$B" "$N"
   command -v ffmpeg >/dev/null && si "ffmpeg $(ffmpeg -version 2>/dev/null | head -1 | awk '{print $3}')" || no "falta ffmpeg"
   [ -x /usr/local/bin/estudio-edge ] && si "navegador: $(/usr/local/bin/estudio-edge --version 2>/dev/null | head -1)" || no "falta el navegador"
-  command -v claude >/dev/null && si "CLI de Claude $(claude --version 2>/dev/null | head -1)" || no "falta el CLI de Claude"
+  command -v codex >/dev/null && si "Codex CLI $(codex --version 2>/dev/null | head -1)" || no "falta Codex CLI"
+  if command -v codex >/dev/null 2>&1; then
+    if runuser -u "$USUARIO" -- env HOME="$RAIZ/home" codex login status 2>&1 | grep -qi 'logged in using chatgpt'; then
+      si "Codex conectado con ChatGPT"
+    else
+      no "Codex necesita iniciar sesión; ejecuta asvs codex-login"
+    fi
+  fi
 
   # La comprobacion que no es obvia: que el fichero con el que se MIDE el texto
   # sea el mismo con el que se DIBUJA. Si se separan, los rotulos se salen de su
@@ -163,12 +171,25 @@ https() {
   echo "Listo: https://$dominio"
 }
 
+codex_login() {
+  command -v codex >/dev/null 2>&1 || {
+    no "falta Codex CLI; vuelve a ejecutar el instalador"
+    return 1
+  }
+  install -d -m 700 -o "$USUARIO" -g "$USUARIO" "$RAIZ/home/.codex"
+  echo "Sigue el acceso de ChatGPT que muestra Codex y completa la verificación del dispositivo."
+  runuser -u "$USUARIO" -- env HOME="$RAIZ/home" codex login --device-auth
+  runuser -u "$USUARIO" -- env HOME="$RAIZ/home" codex login status
+  systemctl restart as-video-studio
+}
+
 case "${1:-estado}" in
   estado|"")   estado ;;
   registro)    registro "${2:-60}" ;;
   reiniciar)   reiniciar ;;
   actualizar)  actualizar ;;
   clave)       shift; estudio-clave "$@" ;;
+  codex-login) codex_login ;;
   https)       https ;;
   -h|--help|ayuda) sed -n '5,13p' "$0" | sed 's/^#  \{0,1\}//' ;;
   *) echo "No entiendo «$1». Prueba:  asvs ayuda"; exit 1 ;;

@@ -5,7 +5,7 @@ Comentarios al estilo Google Docs sobre el guion. El usuario selecciona un trozo
 de un bloque y deja una nota; el paso aplica TODAS las notas de una tacada:
 
   1. agrupa los comentarios por bloque,
-  2. reescribe cada bloque afectado con el CLI de Claude (modelo sonnet),
+  2. reescribe cada bloque afectado con Codex (modelo equilibrado),
      pasandole el bloque original, el fragmento seleccionado y la nota,
   3. vuelve a sintetizar la toma COMPLETA con los mismos controles de voz.
 
@@ -21,7 +21,7 @@ paso 3 y aplica la lista completa de comentarios que hay en sus params. Anadir
 un comentario y volver a ejecutar da el mismo resultado que aplicarlos todos de
 cero, que es lo que espera el grafo de build.
 
-Modo simulado (ESTUDIO_SIMULAR=1): ni CLI de Claude ni Cartesia. La reescritura
+Modo simulado (ESTUDIO_SIMULAR=1): ni Codex ni Cartesia. La reescritura
 la hacen reglas locales deterministas y el audio es silencio con marcas.
 
 API publica
@@ -62,26 +62,26 @@ import subprocess
 import time
 
 try:
-    from . import cli_claude, comun, estadisticas, marcas_tts, p4_voz
+    from . import cli_codex, comun, estadisticas, marcas_tts, p4_voz
 except ImportError:  # ejecutado con la carpeta pasos directamente en sys.path
-    import cli_claude
+    import cli_codex
     import comun
     import estadisticas
     import marcas_tts
     import p4_voz
 
 PASO = "revision_audio"
-# Ver cli_claude.POR_FASE: reescribir un bloque corto con una nota concreta es
+# Ver cli_codex.POR_FASE: reescribir un bloque corto con una nota concreta es
 # de los casos que salen igual de bien con el modelo rapido y esfuerzo bajo, y
 # aqui hay una llamada POR BLOQUE, asi que la latencia se multiplica.
-MODELO_TEXTO = cli_claude.por_defecto_de("revision_audio")["modelo"]
+MODELO_TEXTO = cli_codex.por_defecto_de("revision_audio")["modelo"]
 TIMEOUT_CLI = 420
 
 # Sin --effort, el CLI se pone a razonar durante minutos antes de escribir, y
 # hereda ademas el esfuerzo del entorno desde el que se arranco el servicio.
 # Medido en el paso 3 con la misma entrada: 606 s sin el, 67 s con 'low'.
 # Reescribir un bloque de treinta palabras no necesita mas.
-ESFUERZO_TEXTO = cli_claude.por_defecto_de("revision_audio")["esfuerzo"]
+ESFUERZO_TEXTO = cli_codex.por_defecto_de("revision_audio")["esfuerzo"]
 
 PARAMS_POR_DEFECTO = {
     "comentarios": [],
@@ -291,9 +291,9 @@ def _normalizar(params, estricto=True):
         if clave in PARAMS_POR_DEFECTO:
             opciones[clave] = valor
 
-    opciones["modelo_texto"] = cli_claude.normalizar_modelo(
+    opciones["modelo_texto"] = cli_codex.normalizar_modelo(
         opciones.get("modelo_texto"), estricto=estricto, defecto=MODELO_TEXTO)
-    opciones["esfuerzo_texto"] = cli_claude.normalizar_esfuerzo(
+    opciones["esfuerzo_texto"] = cli_codex.normalizar_esfuerzo(
         opciones.get("esfuerzo_texto"), estricto=estricto, defecto=ESFUERZO_TEXTO)
 
     try:
@@ -317,23 +317,23 @@ def _normalizar(params, estricto=True):
 
 def tiempo_max_de(opciones):
     """Techo de UNA reescritura: el fijado a mano, o el que pide el esfuerzo."""
-    return cli_claude.tiempo_max(opciones["esfuerzo_texto"], base_s=TIMEOUT_CLI,
+    return cli_codex.tiempo_max(opciones["esfuerzo_texto"], base_s=TIMEOUT_CLI,
                                  modelo=opciones["modelo_texto"],
                                  pedido_s=opciones.get("tiempo_max_s") or 0)
 
 
-def _localizar_claude():
-    """Ruta del ejecutable del CLI de Claude."""
-    return cli_claude.localizar("la revision de audio")
+def _localizar_codex():
+    """Ruta del ejecutable de Codex CLI."""
+    return cli_codex.localizar("la revision de audio")
 
 
-def _llamar_claude(instruccion, modelo, cwd, tiempo_max, esfuerzo=ESFUERZO_TEXTO):
+def _llamar_codex(instruccion, modelo, cwd, tiempo_max, esfuerzo=ESFUERZO_TEXTO):
     """Lanza el CLI en headless y devuelve (texto de la respuesta, sobre JSON).
 
     Sigue existiendo con este nombre porque el medidor de coste la engancha POR
-    NOMBRE (nucleo/coste.py:728). La orden la arma cli_claude.
+    NOMBRE (nucleo/coste.py:728). La orden la arma cli_codex.
     """
-    return cli_claude.ejecutar(
+    return cli_codex.ejecutar(
         instruccion, modelo=modelo, esfuerzo=esfuerzo, cwd=cwd,
         tiempo_max_s=tiempo_max, base_tiempo_s=TIMEOUT_CLI,
         sistema=SISTEMA, herramientas_vetadas=HERRAMIENTAS_VETADAS,
@@ -359,16 +359,16 @@ def reescribir_bloque(bloque, comentarios, modelo=MODELO_TEXTO, cwd=None,
         bloque_id=bloque["id"], texto=texto,
         notas=redactar_notas(texto, comentarios))
     try:
-        crudo, sobre = _llamar_claude(instruccion, modelo, cwd, tiempo_max,
+        crudo, sobre = _llamar_codex(instruccion, modelo, cwd, tiempo_max,
                                       esfuerzo=esfuerzo)
-    except (subprocess.TimeoutExpired, cli_claude.TiempoAgotado):
-        return texto, f"el CLI de claude no respondio en {tiempo_max}s", {}
+    except (subprocess.TimeoutExpired, cli_codex.TiempoAgotado):
+        return texto, f"Codex CLI no respondió en {tiempo_max}s", {}
     except (RuntimeError, OSError) as fallo:
         return texto, str(fallo), {}
 
     nuevo = _limpiar_respuesta(crudo)
     if not nuevo:
-        return texto, "el CLI de claude devolvio una respuesta vacia", sobre
+        return texto, "Codex CLI devolvió una respuesta vacía", sobre
     # una reescritura que multiplica o divide el bloque suele ser el modelo
     # explicando en vez de reescribiendo: mejor quedarse con el original. Se
     # compara sobre el texto HABLADO: un bloque con anotaciones tiene mas

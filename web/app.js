@@ -2190,7 +2190,7 @@ function campoTexto(etiqueta, valor, alCambiar, opciones) {
  *      todas, cada una con su propio límite por minuto, así que añadir una
  *      cuenta es literalmente generar más rápido. La etiqueta es el correo de
  *      la cuenta: sin ella, «cuenta 3 sin crédito» no dice dónde recargar.
- *   3. La cuenta de Claude NO es una clave: es un LOGIN. Por eso lo que se pide
+ *   3. La cuenta de Codex NO es una clave: es un LOGIN. Por eso lo que se pide
  *      es una CARPETA de configuración del CLI, no un secreto. Meter aquí una
  *      clave de API convertiría todo el Estudio en pago por uso sin que nadie
  *      se enterase.
@@ -2202,7 +2202,7 @@ function estadoConfig() {
   if (!APP.vista.config) {
     APP.vista.config = { ficha: null, cargando: false, error: '',
       /* Las cuentas del CLI van APARTE de `ficha` porque se piden aparte: su
-         estado de sesión sale de lanzar `claude auth status`, y eso no puede
+         estado de sesión sale de lanzar `codex login status`, y eso no puede
          colgar de abrir el cajón para mirar cualquier otra cosa. */
       cli: null,
       /* Los ajustes van APARTE de `ficha` por lo mismo que las cuentas del
@@ -2246,7 +2246,7 @@ async function cargarClaves() {
 }
 
 /* Las cuentas del CLI, en su propia llamada y sin bloquear el resto del cajón.
-   Se pide DESPUÉS de pintar: preguntarle a `claude auth status` por cada cuenta
+   Se pide DESPUÉS de pintar: preguntarle a `codex login status` por cada cuenta
    son unas décimas cada una, y el cajón tiene que abrirse ya. */
 async function cargarCuentasCLI(refrescar) {
   const vista = estadoConfig();
@@ -2441,7 +2441,7 @@ function seccionOpenAI(ficha) {
           puesta ? cuenta.cola : 'sin poner'))),
     h('div', { clase: 'pista' },
       'La clave con la que se generan las imágenes. Imprescindible, como la de '
-      + 'Cartesia y la cuenta de Claude: sin ella no hay planos que montar.'),
+      + 'Cartesia y la cuenta de Codex: sin ella no hay planos que montar.'),
     h('div', { clase: 'fila-clave' }, campo,
       h('button', {
         clase: 'mini',
@@ -2511,55 +2511,48 @@ function seccionCartesia(ficha) {
 function seccionCLI() {
   const vista = estadoConfig();
   const cli = vista.cli;
-  const cuentas = (cli && cli.cuentas) || [];
-  const dentro = cuentas.filter(c => c.sesion && c.sesion.conectada).length;
+  const cuenta = ((cli && cli.cuentas) || [])[0] || {};
+  const sesion = cuenta.sesion || {};
+  const conectada = !!sesion.conectada;
   const caja = h('section', { clase: 'bloque-config' },
     h('div', { clase: 'fila' },
-      h('h3', {}, 'Claude CLI — guion, catálogo, rótulos…'),
+      h('h3', {}, 'Codex CLI — guion, análisis y asistente'),
       h('span', { clase: 'crece' }),
-      pastillaEstado(dentro ? 'ok' : 'error',
-        !cli ? 'mirando…' : (dentro ? `${dentro} con sesión` : 'sin sesión'))),
+      pastillaEstado(conectada ? 'ok' : 'error',
+        !cli ? 'comprobando…' : (conectada ? 'plan de ChatGPT conectado' : 'sin sesión'))),
     h('div', { clase: 'pista' },
-      'Aquí no va una clave: va una CUENTA. Se gasta la suscripción con '
-      + 'la que el CLI esté logueado, y eso no se puede cambiar con una clave de '
-      + 'API sin convertir cada paso en pago por uso.'),
-    h('div', { clase: 'pista' },
-      'Mandan POR ORDEN: la primera es la que se usa siempre, y las de abajo '
-      + 'entran una a una cuando la de arriba falla o se queda sin cupo. Un '
-      + 'plazo agotado NO baja a la siguiente, a propósito: volvería a vencer.'),
-    h('div', { clase: 'pista' },
-      'El nombre de cada una es sólo para ti —«la mía», «la del curro»— y se '
-      + 'puede dejar en blanco: es lo que sale en el aviso cuando una se queda '
-      + 'sin cupo y entra la siguiente.'));
-
+      'Codex usa el cupo incluido de ChatGPT para texto. Inicia sesión en la máquina '
+      + 'del Estudio (`codex login` en tu PC o `asvs codex-login` en el servidor). '
+      + 'Las imágenes y Cartesia usan sus propias claves.'));
   if (!cli) {
-    caja.appendChild(h('div', { clase: 'cargando' }, 'mirando las cuentas…'));
+    caja.appendChild(h('div', { clase: 'cargando' }, 'comprobando la sesión de Codex…'));
     return caja;
   }
-  if (cli.error) {
-    caja.appendChild(h('div', { clase: 'vacio' }, cli.error));
-    return caja;
-  }
-  cuentas.forEach((cuenta, indice) => caja.appendChild(
-    tarjetaCuentaCLI(cuenta, indice, cuentas)));
-
-  if (cuentas.length < (cli.max || 6)) {
-    const nueva = h('input', { type: 'text', placeholder: 'correo@de-la-cuenta.com' });
-    caja.appendChild(h('div', { clase: 'fila-clave nueva' }, nueva,
-      h('button', {
-        clase: 'mini primario',
-        onclick: () => guardarCuentasCLI(
-          cuentas.map(c => ({ id: c.id, etiqueta: c.etiqueta }))
-            .concat([{ etiqueta: nueva.value.trim() }])),
-      }, 'Añadir cuenta')));
+  if (!conectada) {
+    caja.appendChild(h('div', { clase: 'cli-acceso' },
+      h('div', { clase: 'meta' }, sesion.error || 'Inicia sesión en la máquina que ejecuta el Estudio:'),
+      h('div', { clase: 'fila' },
+        h('span', { clase: 'meta' }, 'PC:'), h('pre', {}, 'codex login'),
+        h('span', { clase: 'meta' }, 'Servidor:'), h('pre', {}, 'asvs codex-login')),
+      h('div', { clase: 'meta' }, 'Después pulsa “Comprobar conexión”.')));
   } else {
-    caja.appendChild(h('div', { clase: 'meta' },
-      `${cli.max} es el tope: la cadena se recorre en serie cuando falla, y `
-      + 'cada cuenta de más es una espera más antes de rendirse.'));
+    caja.appendChild(h('div', { clase: 'inicio-hecho' },
+      pastillaEstado('ok', 'Codex conectado'),
+      h('span', { clase: 'meta' }, 'La aplicación usará tu sesión local del plan de ChatGPT.')));
+    if (cuenta.salud && cuenta.salud.estado !== 'ok') {
+      caja.appendChild(avisoSalud(cuenta.salud));
+    }
   }
+  caja.appendChild(h('div', { clase: 'fila' },
+    h('button', { clase: 'mini', onclick: () => cargarCuentasCLI(true) },
+      'Comprobar conexión'),
+    conectada ? h('button', {
+      clase: 'mini fantasma', disabled: !!vista.probando,
+      onclick: () => probarCuentaCLI(cuenta.id),
+    }, vista.probando ? 'probando…' : 'Probar Codex') : null));
+  if (cli.error) caja.appendChild(h('div', { clase: 'caja-error' }, cli.error));
   return caja;
 }
-
 function tarjetaCuentaCLI(cuenta, indice, cuentas) {
   const sesion = cuenta.sesion || {};
   const intento = cuenta.intento;
@@ -2681,12 +2674,11 @@ async function probarCuentaCLI(cid) {
 }
 
 /* PROBAR TODAS LAS CLAVES contra su servicio (pasos/comprobar_claves.py):
-   OpenAI, Cartesia, Jamendo, FreeSound y las cuentas de Claude, con llamadas
-   que no cuestan dinero. Es el mismo bloque en Configuración y en la última
-   tarjeta de la guía. */
+   las API keys usan consultas de lectura; Codex consume una respuesta mínima
+   del uso incluido. Es el mismo bloque en Configuración y en la guía. */
 const NOMBRES_PROVEEDOR = {
   openai: 'OpenAI — imágenes', cartesia: 'Cartesia — voz', jamendo: 'Jamendo — música',
-  freesound: 'FreeSound — efectos', claude: 'Claude',
+  freesound: 'FreeSound — efectos', codex: 'Codex (plan ChatGPT)',
 };
 
 function bloquePruebaClaves() {
@@ -2701,7 +2693,8 @@ function bloquePruebaClaves() {
       }, vista.probandoTodas ? 'probando…' : 'Probar todas las claves')),
     h('div', { clase: 'pista' },
       '«Puesta» no es «funciona». Esto le habla a cada servicio con una llamada '
-      + 'que no cuesta dinero y dice cuál autentica y cuál no. Lo único que no '
+      + 'de verificación. La prueba de Codex consume una pequeña cantidad del uso '
+      + 'incluido en tu plan. Lo único que no '
       + 'puede saber es si OpenAI tiene saldo: eso se mira en su Billing.'));
   const pruebas = vista.pruebas;
   if (pruebas) {
@@ -2724,7 +2717,7 @@ async function probarTodasLasClaves() {
   vista.probandoTodas = true;
   repintarClaves();
   try {
-    const r = await pedir(API.probarClaves(), { method: 'POST', cuerpo: { claude: true } });
+    const r = await pedir(API.probarClaves(), { method: 'POST', cuerpo: { codex: true } });
     vista.pruebas = r.pruebas || [];
     const sinPoner = vista.pruebas.filter(p => p.estado === 'sin_clave').length;
     toast(!r.todo_bien ? 'alguna clave falla: mira el detalle'
@@ -3028,7 +3021,7 @@ function lupa(url, detalle) {
 }
 
 /* ------------------------------------------------------------- ajustes del CLI
- * Varios pasos llaman por debajo al CLI de Claude y en todos ellos se puede
+ * Varios pasos llaman por debajo al CLI de Codex y en todos ellos se puede
  * elegir MODELO y ESFUERZO de razonamiento. Las dos listas salen de
  * /api/ajustes-cli y de ningun otro sitio: mientras estuvieron escritas a mano
  * aqui, la interfaz ofrecia tres esfuerzos y el backend aceptaba cinco. Dos
@@ -3684,7 +3677,7 @@ async function aplicarCapturas(paso, modo, ajuste) {
 /* ================================================================== COSTE
  * Medidor de la cabecera. No estima: cada motor reporta lo que consumio y aqui
  * solo se suma y se pinta. Los importes que salen de la tabla de tarifas se
- * marcan distinto de los medidos, y Claude sale sin importe porque va contra la
+ * marcan distinto de los medidos, y Codex sale sin importe porque va contra la
  * suscripcion: un dolar inventado ahi seria peor que un hueco.
  */
 
@@ -3752,14 +3745,14 @@ function pintarCoste() {
   if (!datos) { nodo.textContent = 'coste: —'; return; }
   const abierto = proveedorDe(datos, 'openai');
   const voz = proveedorDe(datos, 'tts');
-  const cli = proveedorDe(datos, 'claude_cli');
+  const cli = proveedorDe(datos, 'codex_plan');
 
   nodo.appendChild(h('span', { clase: 'prov' }, h('b', {}, 'OpenAI'), importeCoste(abierto),
     h('span', { clase: 'meta' }, `${corto(abierto.tokens.total)} tok`)));
   nodo.appendChild(h('span', { clase: 'prov' }, h('b', {}, 'TTS'), importeCoste(voz),
     h('span', { clase: 'meta' }, `${corto(voz.cantidad.caracteres)} car`)));
-  // Claude va sin importe y no entra en el TOTAL
-  nodo.appendChild(h('span', { clase: 'prov' }, h('b', {}, 'Claude'),
+  // El uso del plan Codex se mide en tokens y no entra en el TOTAL en dólares.
+  nodo.appendChild(h('span', { clase: 'prov' }, h('b', {}, 'Codex (plan)'),
     h('span', { clase: 'meta', title: 'va contra la suscripción: no suma al total' },
       `${corto(cli.tokens.total)} tok`)));
   nodo.appendChild(h('span', { clase: 'prov total' }, h('b', {}, 'TOTAL'),
@@ -3861,7 +3854,7 @@ async function pintarDesgloseCoste() {
   const fila = ficha => {
     const abierto = proveedorDe(ficha, 'openai');
     const voz = proveedorDe(ficha, 'tts');
-    const cli = proveedorDe(ficha, 'claude_cli');
+    const cli = proveedorDe(ficha, 'codex_plan');
     return [
       h('td', {}, importeCoste(abierto, true)),
       h('td', { clase: 'numerico meta' },
@@ -3877,7 +3870,7 @@ async function pintarDesgloseCoste() {
 
   const tabla = h('table', { clase: 'tabla coste-pasos' },
     h('tr', {}, h('th', {}, 'Paso'), h('th', {}, 'OpenAI'), h('th', {}, ''),
-      h('th', {}, 'TTS'), h('th', {}, ''), h('th', {}, 'Claude'), h('th', {}, 'Total')));
+      h('th', {}, 'TTS'), h('th', {}, ''), h('th', {}, 'Codex (plan)'), h('th', {}, 'Total')));
   for (const ficha of (porPaso && listaDe(porPaso.pasos)) || []) {
     if (!ficha.eventos) continue;
     tabla.appendChild(h('tr', {}, h('th', {}, ficha.nombre || ficha.paso || 'sin paso'), fila(ficha)));
@@ -3935,7 +3928,7 @@ async function pintarDesgloseCoste() {
     h('div', { clase: 'pista', estilo: 'margin-top:10px' },
       h('span', { clase: 'usd derivado' }, '$0.00'), ' importe derivado de la tabla de tarifas · ',
       h('span', { clase: 'usd medido' }, '$0.00'), ' importe medido · ',
-      'Claude se mide solo en tokens y no suma al TOTAL: va contra la suscripción.')));
+      'Codex se mide solo en tokens y no suma al TOTAL en dólares: va contra la suscripción.')));
 }
 
 function conmutarCoste() {
@@ -6854,7 +6847,7 @@ async function refrescarPlanLight(tanda, forzar) {
  * dos maquetaciones distintas es la forma de que una se quede vieja.
  *
  * No estima nada: cada motor reporta lo que consumio (`nucleo/coste`) y aqui
- * solo se pinta. Claude va aparte y sin importe porque va contra la
+ * solo se pinta. Codex va aparte y sin importe porque va contra la
  * suscripcion, y un dolar inventado ahi seria peor que un hueco.
  *
  * El desglose por paso se abre pulsando la pastilla (`conmutarCoste`): es la
@@ -6927,7 +6920,7 @@ function costeLightAhora() {
   if (!datos) { caja.appendChild(h('span', { clase: 'meta' }, 'coste: —')); return caja; }
   const abierto = proveedorDe(datos, 'openai');
   const voz = proveedorDe(datos, 'tts');
-  const cli = proveedorDe(datos, 'claude_cli');
+  const cli = proveedorDe(datos, 'codex_plan');
   caja.appendChild(h('span', { clase: 'prov' }, h('b', {}, 'Imágenes'),
     importeCoste(abierto, true),
     // el recuento solo cuando hay alguna: un «0» al lado del hueco se lee como
@@ -6937,8 +6930,8 @@ function costeLightAhora() {
       : null));
   caja.appendChild(h('span', { clase: 'prov' }, h('b', {}, 'Voz'),
     importeCoste(voz, true)));
-  // Claude va sin importe y no entra en el TOTAL
-  caja.appendChild(h('span', { clase: 'prov' }, h('b', {}, 'Claude'),
+  // El uso del plan Codex se mide en tokens y queda fuera del TOTAL en dólares.
+  caja.appendChild(h('span', { clase: 'prov' }, h('b', {}, 'Codex (plan)'),
     h('span', { clase: 'meta', title: 'va contra la suscripción: no suma al total' },
       `${corto(cli.tokens.total)} tok`)));
   caja.appendChild(h('span', { clase: 'prov total' }, h('b', {}, 'Total'),
@@ -10759,7 +10752,7 @@ function campoArea(etiqueta, valor, alCambiar, pista, foco) {
  * aquí se guarda en el mismo sitio (`/api/claves`) y se cambia luego desde el
  * engranaje.
  *
- * EL ORDEN NO ES CASUAL. Claude va la primera porque es un LOGIN y no una clave
+ * EL ORDEN NO ES CASUAL. Codex va la primera porque es un LOGIN y no una clave
  * —sale un enlace, se entra, se pega un código— y porque con ella entra en
  * juego el asistente de la burbuja, que a partir de ahí puede ayudar con el
  * resto. Después OpenAI (los planos) y Cartesia (la voz), que hacen falta las
@@ -10780,7 +10773,7 @@ const INICIO = { abierta: false, paso: 0, arrancando: false, accesoFallido: '' }
    ve Configuración). */
 const TARJETAS_INICIO = [
   { id: 'bienvenida', titulo: 'Bienvenido a AS Video Studio', pinta: tarjetaBienvenidaInicio },
-  { id: 'claude', titulo: '1 · Tu cuenta de Claude', pinta: tarjetaClaudeInicio },
+  { id: 'codex', titulo: '1 · Sesión de Codex', pinta: tarjetaCodexInicio },
   { id: 'openai', titulo: '2 · La clave de OpenAI (imágenes)', pinta: tarjetaOpenAIInicio },
   { id: 'cartesia', titulo: '3 · La clave de Cartesia (voz)', pinta: tarjetaCartesiaInicio },
   { id: 'jamendo', titulo: '4 · La clave de Jamendo (música, opcional)', pinta: tarjetaJamendoInicio },
@@ -10893,11 +10886,11 @@ function tarjetaBienvenidaInicio() {
     h('div', { clase: 'pista' },
       'Esto convierte lo que escribas —unas notas, un artículo, tu propio guion— '
       + 'en un vídeo de animación narrada, en varios pasos con revisión entre '
-      + 'ellos. Para que pueda hacerlo necesita hablar con cinco servicios, y '
-      + 'cada uno pide su llave. Esta guía te lleva a por ellas una a una, con el '
-      + 'enlace de cada sitio.'),
+      + 'ellos. Codex usa el cupo de tu plan de ChatGPT para las tareas de texto; '
+      + 'OpenAI API genera las imágenes y Cartesia la voz con sus propias claves. '
+      + 'Esta guía te ayuda a conectar cada servicio.'),
     h('ol', { clase: 'inicio-pasos' },
-      h('li', {}, h('b', {}, 'Claude'), ': tu cuenta, no una clave. Escribe el guion, el '
+      h('li', {}, h('b', {}, 'Codex'), ': tu cuenta, no una clave. Escribe el guion, el '
         + 'catálogo visual y los rótulos, y mueve al asistente de la burbuja.'),
       h('li', {}, h('b', {}, 'OpenAI'), ': con ella se dibujan los planos.'),
       h('li', {}, h('b', {}, 'Cartesia'), ': la voz que narra.'),
@@ -10907,184 +10900,55 @@ function tarjetaBienvenidaInicio() {
       'Abajo a la derecha hay una burbuja: es el asistente. Sabe cómo funciona '
       + 'todo esto y ve lo que está pasando en tu Estudio, así que cuando algo '
       + 'falle o no sepas seguir, pregúntale. Contesta con tu propia cuenta de '
-      + 'Claude, que es lo primero que vamos a dejar puesto.'),
+      + 'Codex, que es lo primero que vamos a dejar conectado.'),
     h('div', { clase: 'meta' },
       'Todo lo que pongas aquí se cambia después desde Configuración, el '
       + 'engranaje de arriba a la derecha.'),
   ];
 }
 
-/* LA CUENTA DE LA GUÍA ES UNA. La cadena de cuentas de respaldo sigue en
- * Configuración para quien la necesite; aquí se entra con una y ya: la
- * primera de la lista (la que manda) o, si no hay ninguna, se crea sola.
- *
- * Y EN EL MÍNIMO DE CLICS. Sin sesión, el acceso ARRANCA SOLO al abrir la
- * tarjeta: el enlace ya está esperando, no hay un botón de «Entrar» que
- * pulsar antes. Después son dos gestos: abrir el enlace y pegar el código,
- * que se envía en cuanto se pega. Con sesión, se entra directamente en el
- * estado de la cuenta y, si la última llamada falló (cupo agotado, sesión
- * caducada), se dice aquí mismo. */
-function cuentaDeLaGuia() {
-  const cuentas = ((estadoConfig().cli || {}).cuentas) || [];
-  return cuentas[0] || null;
-}
-
-function tarjetaClaudeInicio() {
+/* Codex tiene una sesión local. La tarjeta comprueba su estado; el inicio de
+ * sesión se hace en la terminal de la máquina que ejecuta el Estudio. */
+function tarjetaCodexInicio() {
   const cli = estadoConfig().cli;
-  const estado = ASISTENTE.estado;
+  const cuenta = ((cli && cli.cuentas) || [])[0] || {};
+  const sesion = cuenta.sesion || {};
+  const conectado = !!sesion.conectada;
+  if (!cli) return [h('div', { clase: 'cargando' }, 'comprobando la sesión local de Codex…')];
   const partes = [
     h('div', { clase: 'pista' },
-      'Con Claude no va una clave: va tu SESIÓN. El Estudio gasta tu '
-      + 'suscripción de Claude, nunca pago por uso, y el asistente contesta con '
-      + 'ella. Hace falta una suscripción (Pro o Max): si no la tienes, se '
-      + 'contrata en '),
+      'Codex ejecuta las tareas de texto, guion y análisis con el uso incluido de ChatGPT. '
+      + 'Inicia sesión desde la terminal de la máquina que ejecuta el Estudio: '
+      + 'en tu PC usa `codex login`; en el servidor usa `asvs codex-login`. '
+      + 'El Estudio no almacena una clave API para Codex.'),
   ];
-  partes[0].appendChild(enlaceInicio('claude.ai', 'https://claude.ai/'));
-  partes[0].appendChild(document.createTextNode('.'));
-  if (!cli) {
-    partes.push(h('div', { clase: 'cargando' }, 'mirando la cuenta…'));
-    return partes;
-  }
-  if (cli.error) {
-    partes.push(h('div', { clase: 'caja-error' }, cli.error));
-    return partes;
-  }
-  const cuenta = cuentaDeLaGuia();
-  const sesion = (cuenta && cuenta.sesion) || {};
-  const intento = cuenta && cuenta.intento;
-  const abierto = !!(intento && ['abriendo', 'enlace', 'probando'].includes(intento.estado));
-  // Lo que manda es con qué contestaría el Estudio (/api/asistente): la
-  // cuenta de la lista si tiene sesión, o la sesión por defecto del CLI si no
-  // hay ninguna usable. Una cuenta añadida y abandonada a medias no tapa una
-  // sesión por defecto que funciona.
-  const buena = estado && estado.listo ? estado.cuenta : null;
-  const candidata = ((estado && estado.cuentas) || []).find(c => !c.motivo) || null;
-  const dentro = !!buena || !!sesion.conectada;
-  const salud = (cuenta && sesion.conectada && cuenta.salud) || (candidata && candidata.salud) || null;
-  const correo = (buena && buena.correo) || sesion.correo;
-  const plan = (buena && buena.plan) || sesion.plan;
-  const probable = cuenta && sesion.conectada ? cuenta.id : '';
-
-  if (dentro && !abierto) {
+  if (conectado) {
     partes.push(h('div', { clase: 'inicio-hecho' },
-      pastillaEstado('ok', 'con sesión'),
-      pastillaSalud(salud),
-      h('span', { clase: 'meta' },
-        `Entrado como ${correo || 'tu cuenta'}${plan ? ` (${plan})` : ''}.`)));
-    const aviso = avisoSalud(salud);
-    if (aviso) partes.push(aviso);
-    partes.push(h('div', { clase: 'fila' },
-      h('button', {
-        clase: 'mini', disabled: !!(estadoConfig().probando || ASISTENTE.probando),
-        onclick: () => (probable ? probarCuentaCLI(probable) : probarAsistente().then(repintarClaves)),
-      }, (estadoConfig().probando || ASISTENTE.probando) ? 'probando…' : 'Probar que contesta'),
-      h('button', {
-        clase: 'mini fantasma',
-        onclick: () => arrancarAccesoGuia(cuenta),
-      }, 'Entrar con otra cuenta')));
-    return partes;
+      pastillaEstado('ok', 'Codex conectado'),
+      h('span', { clase: 'meta' }, 'La aplicación usará tu sesión local del plan de ChatGPT.')));
+    if (cuenta.salud && cuenta.salud.estado !== 'ok') partes.push(avisoSalud(cuenta.salud));
+    partes.push(h('button', { clase: 'mini', onclick: () => cargarCuentasCLI(true) },
+      'Comprobar conexión'));
+  } else {
+    partes.push(h('div', { clase: 'cli-acceso' },
+      h('div', { clase: 'meta' }, sesion.error || 'Inicia sesión en la máquina que ejecuta el Estudio:'),
+      h('div', { clase: 'fila' },
+        h('span', { clase: 'meta' }, 'PC:'), h('pre', {}, 'codex login'),
+        h('span', { clase: 'meta' }, 'Servidor:'), h('pre', {}, 'asvs codex-login')),
+      h('div', { clase: 'meta' }, 'Completa el acceso y vuelve a comprobar la conexión.'),
+      h('button', { clase: 'mini', onclick: () => cargarCuentasCLI(true) },
+        'Comprobar conexión')));
   }
-
-  partes.push(h('ol', { clase: 'inicio-pasos' },
-    h('li', {}, 'Abre el enlace de abajo —vale desde el móvil— y entra con tu cuenta.'),
-    h('li', {}, 'Copia el código que te dé la página y pégalo aquí: se envía solo.')));
-
-  if (INICIO.accesoFallido) {
-    partes.push(h('div', { clase: 'caja-error' }, INICIO.accesoFallido));
-    partes.push(h('div', { clase: 'fila' }, h('button', {
-      clase: 'primario mini',
-      onclick: () => { INICIO.accesoFallido = ''; arrancarAccesoGuia(cuenta); },
-    }, 'Volver a intentarlo')));
-    return partes;
-  }
-  if (!abierto) {
-    // el acceso arranca solo: sin botón que pulsar antes del enlace
-    if (!INICIO.arrancando) arrancarAccesoGuia(cuenta);
-    partes.push(h('div', { clase: 'cargando' }, 'pidiéndole el enlace a Claude…'));
-    return partes;
-  }
-  partes.push(pasoDelAccesoGuia(cuenta, intento));
   return partes;
 }
-
-/* Arranca el acceso de la cuenta de la guía, creándola si no existe. Una sola
-   vez por pantalla: la tarjeta se repinta con cada cambio y sin el candado
-   pediría un enlace nuevo en cada repintado. */
-async function arrancarAccesoGuia(cuenta) {
-  if (INICIO.arrancando) return;
-  INICIO.arrancando = true;
-  try {
-    let id = cuenta && cuenta.id;
-    if (!id) {
-      const vista = estadoConfig();
-      vista.ficha = await pedir(API.claves(), {
-        method: 'PUT', cuerpo: { claude_cli: { cuentas: [{ etiqueta: '' }] } },
-      });
-      id = vista.ficha.claude_cli.cuentas[0].id;
-      await cargarCuentasCLI();
-    }
-    const r = await pedir(API.entrarCLI(id), { method: 'POST' });
-    estadoConfig().cli = Object.assign({}, estadoConfig().cli, { cuentas: r.cuentas });
-    estadoConfig().codigos[id] = '';
-    if (r.intento && r.intento.estado === 'fallo') {
-      INICIO.accesoFallido = r.intento.mensaje || 'no se ha podido pedir el enlace';
-    }
-  } catch (e) {
-    INICIO.accesoFallido = e.message;
-  } finally {
-    INICIO.arrancando = false;
-  }
-  repintarClaves();
-  latirCLI();
-}
-
-/* El acceso en la guía: el enlace como botón grande y el código que se envía
-   al pegarlo. Los estados son los del servidor (`login_cli.Intento`). */
-function pasoDelAccesoGuia(cuenta, intento) {
-  const vista = estadoConfig();
-  if (intento.estado === 'abriendo') {
-    return h('div', { clase: 'cli-acceso' },
-      h('div', { clase: 'cargando' }, 'pidiéndole el enlace a Claude…'));
-  }
-  const caja = h('textarea', {
-    rows: 2, placeholder: 'pega aquí el código: se envía solo',
-    value: vista.codigos[cuenta.id] || '',
-    disabled: intento.estado === 'probando',
-    oninput: e => { vista.codigos[cuenta.id] = e.target.value; },
-  });
-  const mandar = () => mandarCodigoCLI(cuenta.id, caja.value.trim());
-  // al PEGAR se manda solo: el evento llega antes de que el texto esté en el
-  // campo, así que se espera al siguiente tic
-  caja.addEventListener('paste', () => setTimeout(mandar, 0));
-  caja.addEventListener('keydown', ev => {
-    if (ev.key === 'Enter' && !ev.shiftKey) { ev.preventDefault(); mandar(); }
-  });
-  return h('div', { clase: 'cli-acceso' },
-    h('a', { clase: 'cli-enlace grande', href: intento.enlace, target: '_blank',
-      rel: 'noopener noreferrer' }, '1 · Abrir la página de acceso'),
-    h('div', { clase: 'fila' },
-      h('button', {
-        clase: 'mini fantasma',
-        onclick: () => { navigator.clipboard.writeText(intento.enlace)
-          .then(() => toast('enlace copiado'), () => toast('no se ha podido copiar', true)); },
-      }, 'Copiar el enlace'),
-      h('span', { clase: 'meta' }, `caduca en ${Math.ceil(intento.caduca_en / 60)} min`)),
-    h('div', { clase: 'meta' }, '2 · Pega el código entero, incluido lo que va detrás de la almohadilla:'),
-    caja,
-    intento.mensaje ? h('div', { clase: 'meta aviso' }, intento.mensaje) : null,
-    intento.estado === 'probando' ? h('div', { clase: 'cargando' }, 'comprobando el código…') : null,
-    intento.estado === 'fallo' ? h('div', { clase: 'fila' },
-      h('button', { clase: 'mini primario', onclick: () => arrancarAccesoGuia(cuenta) },
-        'Pedir otro enlace')) : null);
-}
-
 function tarjetaOpenAIInicio() {
   const ficha = estadoConfig().ficha;
   const puesta = !!(ficha && ficha.openai && ficha.openai.length);
   return [
     h('div', { clase: 'pista' },
       'Con esta clave se dibujan los planos: sin ella no hay vídeo. Cada imagen '
-      + 'se paga; un vídeo de cuatro minutos son unos 4,4 $ en calidad baja.'),
+      + 'se paga por separado. El coste cambia según el número de planos, las '
+      + 'referencias adjuntas y la calidad; el Estudio estima el total antes de generar.'),
     h('ol', { clase: 'inicio-pasos' },
       h('li', {}, 'Entra en ', enlaceInicio('platform.openai.com', 'https://platform.openai.com/'),
         ' y crea una cuenta si no la tienes.'),
@@ -11167,15 +11031,15 @@ function tarjetaFinalInicio() {
   const cli = estadoConfig().cli;
   const estado = ASISTENTE.estado;
   const cuentas = (cli && cli.cuentas) || [];
-  const claude = cuentas.some(c => c.sesion && c.sesion.conectada) || !!(estado && estado.listo);
+  const codex = cuentas.some(c => c.sesion && c.sesion.conectada) || !!(estado && estado.listo);
   const fila = (nombre, puesta, opcional) => h('div', { clase: 'inicio-hecho' },
     pastillaEstado(puesta ? 'ok' : (opcional ? 'parcial' : 'error'),
       puesta ? 'puesta' : (opcional ? 'para luego' : 'sin poner')),
     h('span', {}, nombre));
-  const faltan = [!claude, !(ficha.openai && ficha.openai.length), !(ficha.cartesia && ficha.cartesia.puesta)]
+  const faltan = [!codex, !(ficha.openai && ficha.openai.length), !(ficha.cartesia && ficha.cartesia.puesta)]
     .filter(Boolean).length;
   return [
-    fila('Claude — guion, catálogo, rótulos y el asistente', claude),
+    fila('Codex — guion, análisis y asistente', codex),
     fila('OpenAI — imágenes', !!(ficha.openai && ficha.openai.length)),
     fila('Cartesia — voz', !!(ficha.cartesia && ficha.cartesia.puesta)),
     fila('Jamendo — música', !!(ficha.jamendo && ficha.jamendo.puesta), true),
@@ -11183,7 +11047,7 @@ function tarjetaFinalInicio() {
     faltan
       ? h('div', { clase: 'caja-aviso' },
         `Falta${faltan > 1 ? 'n' : ''} ${faltan} de las tres que hacen falta para un vídeo `
-        + '(Claude, OpenAI y Cartesia). Sin ellas no sale el vídeo entero: se '
+        + '(Codex, OpenAI y Cartesia). Sin ellas no sale el vídeo entero: se '
         + 'ponen desde Configuración, el engranaje de arriba a la derecha.')
       : h('div', { clase: 'caja-info' },
         'Está todo. Lo siguiente es crear un estilo (cómo se dibuja y cómo se '
@@ -11197,14 +11061,14 @@ function tarjetaFinalInicio() {
 
 /* ================================================================ EL ASISTENTE
  *
- * La burbuja de abajo a la derecha. Es un chat con el CLI de Claude que tiene
+ * La burbuja de abajo a la derecha. Es un chat con el CLI de Codex que tiene
  * delante la documentación del producto, el código y una foto del estado del
  * Estudio en el momento de cada pregunta: qué claves hay, qué vídeo está
  * abierto, qué paso está parado y con qué error. Lo que sabe y lo que no puede
  * tocar está en `pasos/asistente.py`.
  *
  * ESTÁ DESDE EL PRIMER DÍA, sin ninguna clave: si el CLI no tiene sesión la
- * burbuja lo dice y manda a entrar (a la tarjeta de Claude de la guía). No se
+ * burbuja lo dice y manda a entrar (a la tarjeta de Codex de la guía). No se
  * esconde, porque justo la persona que aún no tiene nada puesto es la que más
  * preguntas tiene.
  *
@@ -11337,7 +11201,7 @@ async function enviarAlAsistente(reintento) {
   const texto = campo.value.trim();
   if (!texto) return;
   if (!ASISTENTE.estado || !ASISTENTE.estado.listo) {
-    toast('el asistente necesita una sesión de Claude para contestar', true);
+    toast('el asistente necesita una sesión de Codex para contestar', true);
     return;
   }
   if (ASISTENTE.charla && ASISTENTE.charla.ocupada) {
@@ -11427,7 +11291,7 @@ function pintarAsistente() {
   burbuja.classList.toggle('aviso', ASISTENTE.sinLeer && !ocupada);
   burbuja.title = listo
     ? 'Asistente: pregunta lo que sea del Estudio'
-    : 'Asistente: necesita que entres con tu cuenta de Claude';
+    : 'Asistente: necesita que entres con tu cuenta de Codex';
   if (cajon.classList.contains('plegado')) return;
 
   const pastilla = vaciar($('#asistente-estado'));
@@ -11453,7 +11317,7 @@ function pintarAsistente() {
   campo.disabled = !listo || ocupada;
   campo.placeholder = listo
     ? 'Pregunta lo que quieras: un error, un paso parado, dónde está algo…'
-    : 'Entra con tu cuenta de Claude para poder preguntar';
+    : 'Entra con tu cuenta de Codex para poder preguntar';
   $('#btn-enviar-asistente').disabled = !listo || ocupada;
   $('#btn-cancelar-asistente').hidden = !ocupada;
   $('#btn-nueva-charla').disabled = ocupada || !charla;
@@ -11467,30 +11331,30 @@ function puertaDelAsistente(estado) {
   const conSesion = cuentas.filter(c => c.sesion);
   if (ASISTENTE.probando) {
     return h('div', { clase: 'asistente-puerta' },
-      h('div', { clase: 'cargando' }, 'comprobando que tu cuenta de Claude contesta…'));
+      h('div', { clase: 'cargando' }, 'comprobando que tu cuenta de Codex contesta…'));
   }
   if (!conSesion.length) {
     return h('div', { clase: 'asistente-puerta' },
       h('div', { clase: 'caja-aviso' },
-        'Para poder ayudarte necesito que entres primero con tu cuenta de Claude: '
+        'Para poder ayudarte necesito que entres primero con tu cuenta de Codex: '
         + 'contesto con tu propia suscripción, sin ninguna clave aparte. Hasta '
         + 'entonces no te puedo responder.'),
       estado.motivo ? h('div', { clase: 'meta' }, estado.motivo) : null,
       h('div', { clase: 'fila' },
-        h('button', { clase: 'primario mini', onclick: () => abrirInicio(1) }, 'Entrar con Claude'),
+        h('button', { clase: 'primario mini', onclick: () => abrirInicio(1) }, 'Entrar con Codex'),
         h('button', { clase: 'mini fantasma', onclick: () => refrescarEstadoAsistente() },
           'Ya he entrado: vuelve a mirar')));
   }
   return h('div', { clase: 'asistente-puerta' },
     h('div', { clase: 'caja-error' },
-      'Tu cuenta de Claude tiene sesión pero ahora mismo no puede contestar.'),
+      'Tu cuenta de Codex tiene sesión pero ahora mismo no puede contestar.'),
     conSesion.map(c => h('div', { clase: 'fila' },
       h('b', {}, c.etiqueta || c.correo || 'la cuenta'),
       pastillaSalud(c.salud),
       h('span', { clase: 'meta' }, c.motivo || ''))),
     h('div', { clase: 'fila' },
       h('button', { clase: 'primario mini', onclick: () => probarAsistente() }, 'Volver a probar'),
-      h('button', { clase: 'mini fantasma', onclick: () => abrirInicio(1) }, 'Entrar con otra cuenta')));
+      h('button', { clase: 'mini fantasma', onclick: () => cargarCuentasCLI(true) }, 'Comprobar sesión')));
 }
 
 /* Una charla vacía: qué se le puede preguntar, y tres preguntas que se pulsan. */

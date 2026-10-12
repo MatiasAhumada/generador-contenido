@@ -31,7 +31,7 @@ Aqui vive el almacen, y tres reglas que no se tocan:
 QUE ES UNA CUENTA DEL CLI DE CLAUDE
 -----------------------------------
 No es una clave: es un LOGIN. El Estudio consume la suscripcion con la que el
-CLI esta logueado y `cli_claude.entorno()` borra a proposito las variables de
+CLI esta logueado y `cli_codex.entorno()` borra a proposito las variables de
 pago por uso para que no pueda salirse de ahi (ANTHROPIC_API_KEY y companiaa).
 Una cuenta es por tanto una CARPETA DE CONFIGURACION del CLI
 (`CLAUDE_CONFIG_DIR`) con su propio login dentro. Meter una clave de API como
